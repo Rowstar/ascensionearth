@@ -31,10 +31,12 @@ class Game {
         }
     }
 
-    rollForRewards() {
-        this.mountainJourneyRewardPool.push(this.rollReward());
-        this.caveJourneyRewardPool.push(this.rollReward());
-    }
+rollForRewards() {
+    this.mountainJourneyRewardPool.push(this.rollReward());
+    this.caveJourneyRewardPool.push(this.rollReward());
+    document.getElementById('mountain-journey-reward-pool').innerHTML = this.mountainJourneyRewardPool.map(reward => `<li>${reward.type}</li>`).join('');
+    document.getElementById('cave-journey-reward-pool').innerHTML = this.caveJourneyRewardPool.map(reward => `<li>${reward.type}</li>`).join('');
+}
 
     rollReward() {
         const roll = Math.floor(Math.random() * 6) + 1;
