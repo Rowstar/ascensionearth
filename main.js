@@ -1,43 +1,55 @@
-let deck = [];
-let currentCard = null;
-
-function startGame() {
-    deck = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
-    shuffle(deck);
-    currentCard = deck.pop();
-    document.getElementById('current-card').innerText = currentCard;
-    document.getElementById('game-board').style.display = 'block';
-    document.getElementById('message').innerText = '';
-}
-
-function shuffle(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
+class Player {
+    constructor() {
+        this.actionCards = ['Meditate', 'Mountain Journey', 'Cave Journey', 'Earth Advancement'];
+        this.gameCards = [];
+        this.spells = [];
+        this.artifacts = [];
+        this.teachings = [];
+        this.ascensionPower = 0;
     }
 }
 
-function guessHigher() {
-    guess(true);
-}
+class Game {
+    constructor() {
+        this.players = [new Player(), new Player()];
+        this.gameCards = ['Blue Lotus', 'Magical Butterfly', 'Temple Priestess', 'Happy Holy Man', 'Ancient Turtle', 'Ethereal Cactus', 'Kundalini Snake', 'Mystical Mushrooms', 'Astral Cockatoo', 'Druid', 'Enlightened Dolphin', 'Cosmic Toad', 'Shaman', 'Master Monk', 'Tree of Life'];
+        this.spells = ['Empower the Meek', 'Channel Group Energy', 'Tribal Spirits', 'Third Eye Awakening'];
+        this.artifacts = ['Mystic Orb', 'Spell Staff', 'Giant Crystal', 'Lucky Beads', 'Stone of Balance', 'Reincarnation Crystal', 'Sacred Plant Seed', 'Magnetic Crystal', 'Spirit Totem', 'Extra Terrestrial Artifact', 'Crystal Seeker Goggles', 'Mysterious Totem', 'Cosmic Robes'];
+        this.teachings = ['Teaching 1', 'Teaching 2', 'Teaching 3']; // Replace with actual teachings
+        this.shuffle(this.gameCards);
+        this.shuffle(this.spells);
+        this.shuffle(this.artifacts);
+        this.shuffle(this.teachings);
+        this.mountainJourneyRewardPool = [];
+        this.caveJourneyRewardPool = [];
+    }
 
-function guessLower() {
-    guess(false);
-}
+    shuffle(array) {
+        for (let i = array.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [array[i], array[j]] = [array[j], array[i]];
+        }
+    }
 
-function guess(isHigher) {
-    const nextCard = deck.pop();
-    const isCorrect = isHigher ? nextCard > currentCard : nextCard < currentCard;
-    currentCard = nextCard;
-    document.getElementById('current-card').innerText = currentCard;
-    document.getElementById('message').innerText = isCorrect ? 'Correct!' : 'Wrong!';
-    if (deck.length === 0) {
-        document.getElementById('game-board').style.display = 'none';
-        document.getElementById('message').innerText += ' Game over!';
+    rollForRewards() {
+        this.mountainJourneyRewardPool.push(this.rollReward());
+        this.caveJourneyRewardPool.push(this.rollReward());
+    }
+
+    rollReward() {
+        const roll = Math.floor(Math.random() * 6) + 1;
+        switch (roll) {
+            case 1: return { type: 'Crystal Shard', ascensionPower: 5 };
+            case 2: return { type: 'Crystal Shard', ascensionPower: 10 };
+            case 3: return { type: 'Game Card', card: this.gameCards.pop() };
+            case 4: return { type: 'Artifact', artifact: this.artifacts.pop(), ascensionPower: 10 };
+            case 5: return { type: 'Spell', spell: this.spells.pop(), ascensionPower: 15 };
+            case 6: return { type: 'Crystal', ascensionPower: 20 };
+        }
     }
 }
 
-document.getElementById('start').addEventListener('click', startGame);
-document.getElementById('higher').addEventListener('click', guessHigher);
-document.getElementById('lower').addEventListener('click', guessLower);
-
+const game = new Game();
+game.rollForRewards();
+console.log(game.mountainJourneyRewardPool);
+console.log(game.caveJourneyRewardPool);
