@@ -23,11 +23,14 @@
         <h2>Player 1</h2>
         <p>Ascension Power: <span id="player1-ascension-power">0</span></p>
         <button id="player1-meditate">Meditate</button>
+        <button id="collect-mountain-rewards">Mountain Journey Rewards</button>
         <ul id="player1-cards"></ul>
+        <ul id="player1-rewards"></ul>
         <h2>Player 2</h2>
         <p>Ascension Power: <span id="player2-ascension-power">0</span></p>
         <button id="player2-meditate">Meditate</button>
         <ul id="player2-cards"></ul>
+        <ul id="player2-rewards"></ul> 
     </div>
 <script>
 class Player {
@@ -137,6 +140,27 @@ function updateUI() {
         document.getElementById('game-board').style.display = 'block'; // Show the game board
         document.getElementById('start').style.display = 'none'; // Hide the Start Game button
     });
+
+let currentPlayer = 0;  // Assuming 0 is Player 1 and 1 is Player 2
+
+document.getElementById('collect-mountain-rewards').addEventListener('click', function() {
+    // Collect rewards for the current player
+    game.players[currentPlayer].gameCards = game.players[currentPlayer].gameCards.concat(game.mountainJourneyRewardPool.filter(reward => reward.type === 'Game Card').map(reward => reward.card));
+  // Display the rewards under the current player
+    const currentPlayerRewardsElement = document.getElementById(`player${currentPlayer + 1}-rewards`);
+    currentPlayerRewardsElement.innerHTML = game.mountainJourneyRewardPool.map(reward => `<li>${reward.type}: ${reward.card ? reward.card.name : ''}</li>`).join('');
+    game.players[currentPlayer].ascensionPower += game.mountainJourneyRewardPool.filter(reward => reward.type !== 'Game Card').reduce((sum, reward) => sum + reward.ascensionPower, 0);
+
+    // Reset the Mountain Journey Reward Pool
+    game.mountainJourneyRewardPool = [];
+
+    // Reset game cards for the current player
+    game.players[currentPlayer].gameCards = [];
+
+    // Update the UI
+    updateUI();
+});
+
 </script>
 
 </body>
