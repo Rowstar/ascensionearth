@@ -4,7 +4,6 @@
     <title>Ascension Earth Board Game</title>
     <style>
         #game-board {
-            display: none;
         }
         button {
             color: white;
@@ -176,11 +175,6 @@ document.querySelectorAll('[id$="-collect-rewards"]').forEach(button => {
             switchTurn();
         }
     });
-});
-    // Start event listener
-    document.getElementById('start').addEventListener('click', function() {
-    document.getElementById('game-board').style.display = 'block';
-    document.getElementById('start').style.display = 'none';
 });
 
 });
