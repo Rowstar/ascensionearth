@@ -49,16 +49,16 @@ button:hover {
         <h2>Player 1</h2>
         <p>Ascension Power: <span id="power1">0</span></p>
         <ul id="player1Cards"></ul>
-<button id="player1Meditate" onclick="meditate(1)">Meditate</button>
-<button id="player1Reward" onclick="reward(1)">Reward Pool</button>
+        <button onclick="meditate(1)">Meditate</button>
+        <button onclick="reward(1)">Reward Pool</button>
     </div>
 
     <div class="player" id="player2">
         <h2>Player 2</h2>
         <p>Ascension Power: <span id="power2">0</span></p>
         <ul id="player2Cards"></ul>
-<button id="player2Meditate" onclick="meditate(2)">Meditate</button>
-<button id="player2Reward" onclick="reward(2)">Reward Pool</button>
+        <button onclick="meditate(2)">Meditate</button>
+        <button onclick="reward(2)">Reward Pool</button>
     </div>
 
     <div id="rewardPool">
@@ -106,10 +106,14 @@ function addCardsToRewardPool() {
 }
 
 function meditate(player) {
-    disableButtons(player);
     const randomCards = getRandomCards(2);
     let playerPower;
     let playerCardsElement;
+
+        if (player !== currentPlayer) {
+        alert(`It's Player ${currentPlayer}'s turn!`);
+        return;
+    }
 
     if (player === 1) {
         playerPower = player1Power;
@@ -134,32 +138,20 @@ function meditate(player) {
         document.getElementById('power2').textContent = playerPower;
     }
 
-function disableButtons(player) {
-    if (player === 1) {
-        document.getElementById('player2Meditate').disabled = true;
-        document.getElementById('player2Reward').disabled = true;
-    } else {
-        document.getElementById('player1Meditate').disabled = true;
-        document.getElementById('player1Reward').disabled = true;
-    }
-}
-
-function enableButtons() {
-    document.getElementById('player1Meditate').disabled = false;
-    document.getElementById('player1Reward').disabled = false;
-    document.getElementById('player2Meditate').disabled = false;
-    document.getElementById('player2Reward').disabled = false;
-}
-    
-   buttonPressCount++;
+    buttonPressCount++;
     if (buttonPressCount === 2) {
         addCardsToRewardPool();
-        enableButtons();
         buttonPressCount = 0;
     }
+    currentPlayer = (currentPlayer === 1) ? 2 : 1;
 }
 
 function reward(player) {
+        if (player !== currentPlayer) {
+        alert(`It's Player ${currentPlayer}'s turn!`);
+        return;
+    }
+
     if (rewardPoolCards.length === 0) {
         alert("Reward pool is empty!");
         return;
