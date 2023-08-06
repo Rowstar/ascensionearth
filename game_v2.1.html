@@ -45,7 +45,17 @@ button:hover {
     </style>
 </head>
 <body>
-<div id="turnDisplay" style="text-align: center; font-size: 24px; margin-bottom: 20px;">Player 1's Turn</div>
+<body>
+    <!-- Player's Turn Display -->
+    <div id="turnDisplay" style="text-align: center; font-size: 24px; margin-bottom: 20px;">Player 1's Turn</div>
+
+    <!-- Reward Pool Display -->
+    <div id="rewardPool" style="text-align: center; margin-bottom: 20px;">
+        <h2>Reward Pool</h2>
+        <ul id="poolCards"></ul>
+    </div>
+
+    <!-- Player 1 Interface -->
     <div class="player" id="player1">
         <h2>Player 1</h2>
         <p>Ascension Power: <span id="power1">0</span></p>
@@ -54,6 +64,7 @@ button:hover {
         <button onclick="reward(1)">Reward Pool</button>
     </div>
 
+    <!-- Player 2 Interface -->
     <div class="player" id="player2">
         <h2>Player 2</h2>
         <p>Ascension Power: <span id="power2">0</span></p>
@@ -62,10 +73,9 @@ button:hover {
         <button onclick="reward(2)">Reward Pool</button>
     </div>
 
-    <div id="rewardPool">
-        <h2>Reward Pool</h2>
-        <ul id="poolCards"></ul>
-    </div>
+    <!-- Rest of the existing content... -->
+</body>
+
 
     <script>
 const cards = [
