@@ -111,11 +111,18 @@ document.getElementById('player2-meditate').addEventListener('click', function()
   updateUI();
 });
 function updateUI() {
-  document.getElementById('player1-ascension-power').textContent = game.players[0].ascensionPower;
-  document.getElementById('player2-ascension-power').textContent = game.players[1].ascensionPower;
+    document.getElementById('player1-ascension-power').textContent = game.players[0].ascensionPower;
+    document.getElementById('player2-ascension-power').textContent = game.players[1].ascensionPower;
 
-  // Add code here to update other parts of the UI, such as the player's hand of cards
+    // Update player 1's cards
+    let player1Cards = game.players[0].gameCards.map(card => `<li>${card}</li>`).join('');
+    document.getElementById('player1-cards').innerHTML = player1Cards;
+
+    // Update player 2's cards
+    let player2Cards = game.players[1].gameCards.map(card => `<li>${card}</li>`).join('');
+    document.getElementById('player2-cards').innerHTML = player2Cards;
 }
+
 </script>
 
 </body>
