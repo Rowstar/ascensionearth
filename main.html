@@ -55,7 +55,12 @@ class Player {
 class Game {
     constructor() {
         this.players = [new Player(), new Player()];
-        this.gameCards = ['Blue Lotus', power: 5], 'Magical Butterfly', power: 6], 'Temple Priestess', power: 7], 'Happy Holy Man', power: 8], 'Ancient Turtle', power: 9];
+        this.gameCards = [
+    { name: 'Blue Lotus', power: 5 },
+    { name: 'Magical Butterfly', power: 6 },
+    { name: 'Temple Priestess', power: 7 },
+    { name: 'Happy Holy Man', power: 8 },
+    { name: 'Ancient Turtle', power: 9 }];
         this.spells = ['Empower the Meek', 'Channel Group Energy', 'Tribal Spirits', 'Third Eye Awakening'];
         this.artifacts = ['Mystic Orb', 'Spell Staff', 'Giant Crystal', 'Lucky Beads', 'Stone of Balance', 'Reincarnation Crystal', 'Sacred Plant Seed', 'Magnetic Crystal', 'Spirit Totem', 'Extra Terrestrial Artifact', 'Crystal Seeker Goggles', 'Mysterious Totem', 'Cosmic Robes'];
         this.teachings = ['Teaching 1', 'Teaching 2', 'Teaching 3']; // Replace with actual teachings
