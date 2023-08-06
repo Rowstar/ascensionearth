@@ -83,24 +83,27 @@ class Game {
         }
     }
 
-rollForRewards() {
-    this.mountainJourneyRewardPool.push(this.rollReward());
-    this.caveJourneyRewardPool.push(this.rollReward());
-    document.getElementById('mountain-journey-reward-pool').innerHTML = this.mountainJourneyRewardPool.map(reward => `<li>${reward.type}</li>`).join('');
-    document.getElementById('cave-journey-reward-pool').innerHTML = this.caveJourneyRewardPool.map(reward => `<li>${reward.type}</li>`).join('');
+rollReward() {
+    const roll = Math.floor(Math.random() * 6) + 1;
+    switch (roll) {
+        case 1: return { type: 'Crystal Shard', ascensionPower: 5 };
+        case 2: return { type: 'Crystal Shard', ascensionPower: 10 };
+        case 3: return { type: 'Game Card', card: this.drawGameCard() };
+        case 4: return { type: 'Artifact', artifact: this.artifacts.pop(), ascensionPower: 10 };
+        case 5: return { type: 'Spell', spell: this.spells.pop(), ascensionPower: 15 };
+        case 6: return { type: 'Crystal', ascensionPower: 20 };
+    }
 }
 
-    rollReward() {
-        const roll = Math.floor(Math.random() * 6) + 1;
-        switch (roll) {
-            case 1: return { type: 'Crystal Shard', ascensionPower: 5 };
-            case 2: return { type: 'Crystal Shard', ascensionPower: 10 };
-            case 3: return { type: 'Game Card', card: this.gameCards.pop() };
-            case 4: return { type: 'Artifact', artifact: this.artifacts.pop(), ascensionPower: 10 };
-            case 5: return { type: 'Spell', spell: this.spells.pop(), ascensionPower: 15 };
-            case 6: return { type: 'Crystal', ascensionPower: 20 };
-        }
+rollForRewards() {
+    const numCards = Math.floor(Math.random() * 3) + 1; // Random number between 1 and 3
+    for (let i = 0; i < numCards; i++) {
+        this.mountainJourneyRewardPool.push(this.rollReward());
+        this.caveJourneyRewardPool.push(this.rollReward());
     }
+    document.getElementById('mountain-journey-reward-pool').innerHTML = this.mountainJourneyRewardPool.map(reward => `<li>${reward.type}: ${reward.card ? reward.card.name : ''}</li>`).join('');
+    document.getElementById('cave-journey-reward-pool').innerHTML = this.caveJourneyRewardPool.map(reward => `<li>${reward.type}: ${reward.card ? reward.card.name : ''}</li>`).join('');
+}
 }
 
 const game = new Game();
