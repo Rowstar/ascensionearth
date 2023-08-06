@@ -45,17 +45,18 @@ document.addEventListener('DOMContentLoaded', function() {
             this.ascensionPower = 0;
         }
 
-meditate(gameCardsPool) {
-    const numberOfCards = 3;
-    for (let i = 0; i < numberOfCards; i++) {
-        const randomIndex = Math.floor(Math.random() * gameCardsPool.length);
-        const randomCard = gameCardsPool[randomIndex];
-        this.gameCards.push(randomCard);
-        gameCardsPool.splice(randomIndex, 1);
+        meditate(gameCardsPool) {
+            const numberOfCards = 3;
+            for (let i = 0; i < numberOfCards; i++) {
+                const randomIndex = Math.floor(Math.random() * gameCardsPool.length);
+                const randomCard = gameCardsPool[randomIndex];
+                this.gameCards.push(randomCard);
+                gameCardsPool.splice(randomIndex, 1);
+            }
+            updateUI(); // Refresh the UI to display the new cards
+        }
     }
-    updateUI(); // Refresh the UI to display the new cards
-}
-
+    
     class Game {
         constructor() {
             this.players = [new Player(), new Player()];
@@ -63,7 +64,6 @@ meditate(gameCardsPool) {
             this.caveJourneyRewardPool = [];
             this.rollForRewards();
         }
-    }
 rollForRewards() {
     const gameCards = [
         { name: 'Blue Lotus', power: 5 },
