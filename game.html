@@ -71,6 +71,11 @@ rollForRewards() {
         { name: 'Temple Priestess', power: 7 },
         { name: 'Happy Holy Man', power: 8 },
         { name: 'Ancient Turtle', power: 9 }
+        { name: 'Tree', power: 10 },
+        { name: 'Bee', power: 11 },
+        { name: 'Monk', power: 12 },
+        { name: 'Kundalini Snake', power: 13 },
+        { name: 'Enlightened Dolphin', power: 14 }
     ];
 
     // Randomly select 1-3 game cards as rewards
@@ -196,10 +201,6 @@ function updateUI() {
             switchTurn();
         }
     });
-
-    // Initial setup
-    game.rollForRewards();
-    updateUI();
 });
 
 </script>
