@@ -43,17 +43,19 @@ class Player {
         this.ascensionPower = 0;
     }    
     meditate() {
-    // Draw 4 game cards
-    for (let i = 0; i < 4; i++) {
-      this.gameCards.push(game.drawGameCard());
+        // Draw 2 game cards
+        for (let i = 0; i < 2; i++) {
+            let drawnCard = game.drawGameCard();
+            this.gameCards.push(drawnCard);
+            this.ascensionPower += drawnCard.power;
+        }
     }
-  }
 }
 
 class Game {
     constructor() {
         this.players = [new Player(), new Player()];
-        this.gameCards = ['Blue Lotus', 'Magical Butterfly', 'Temple Priestess', 'Happy Holy Man', 'Ancient Turtle', 'Ethereal Cactus', 'Kundalini Snake', 'Mystical Mushrooms', 'Astral Cockatoo', 'Druid', 'Enlightened Dolphin', 'Cosmic Toad', 'Shaman', 'Master Monk', 'Tree of Life'];
+        this.gameCards = ['Blue Lotus', power: 5], 'Magical Butterfly', power: 6], 'Temple Priestess', power: 7], 'Happy Holy Man', power: 8], 'Ancient Turtle', power: 9];
         this.spells = ['Empower the Meek', 'Channel Group Energy', 'Tribal Spirits', 'Third Eye Awakening'];
         this.artifacts = ['Mystic Orb', 'Spell Staff', 'Giant Crystal', 'Lucky Beads', 'Stone of Balance', 'Reincarnation Crystal', 'Sacred Plant Seed', 'Magnetic Crystal', 'Spirit Totem', 'Extra Terrestrial Artifact', 'Crystal Seeker Goggles', 'Mysterious Totem', 'Cosmic Robes'];
         this.teachings = ['Teaching 1', 'Teaching 2', 'Teaching 3']; // Replace with actual teachings
@@ -115,11 +117,11 @@ function updateUI() {
     document.getElementById('player2-ascension-power').textContent = game.players[1].ascensionPower;
 
     // Update player 1's cards
-    let player1Cards = game.players[0].gameCards.map(card => `<li>${card}</li>`).join('');
+    let player1Cards = game.players[0].gameCards.map(card => `<li>${card.name} (Power: ${card.power})</li>`).join('');
     document.getElementById('player1-cards').innerHTML = player1Cards;
 
     // Update player 2's cards
-    let player2Cards = game.players[1].gameCards.map(card => `<li>${card}</li>`).join('');
+    let player2Cards = game.players[1].gameCards.map(card => `<li>${card.name} (Power: ${card.power})</li>`).join('');
     document.getElementById('player2-cards').innerHTML = player2Cards;
 }
 
