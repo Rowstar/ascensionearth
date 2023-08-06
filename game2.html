@@ -48,6 +48,7 @@ button:hover {
     <div class="player" id="player1">
         <h2>Player 1</h2>
         <p>Ascension Power: <span id="power1">0</span></p>
+        <ul id="player1Cards"></ul>
         <button onclick="meditate(1)">Meditate</button>
         <button onclick="reward(1)">Reward Pool</button>
     </div>
@@ -55,6 +56,7 @@ button:hover {
     <div class="player" id="player2">
         <h2>Player 2</h2>
         <p>Ascension Power: <span id="power2">0</span></p>
+        <ul id="player2Cards"></ul>
         <button onclick="meditate(2)">Meditate</button>
         <button onclick="reward(2)">Reward Pool</button>
     </div>
@@ -105,12 +107,30 @@ function addCardsToRewardPool() {
 
 function meditate(player) {
     const randomCards = getRandomCards(2);
+    let playerPower;
+    let playerCardsElement;
+
     if (player === 1) {
-        player1Power += randomCards.reduce((acc, card) => acc + card.power, 0);
-        document.getElementById('power1').textContent = player1Power;
+        playerPower = player1Power;
+        playerCardsElement = document.getElementById('player1Cards');
     } else {
-        player2Power += randomCards.reduce((acc, card) => acc + card.power, 0);
-        document.getElementById('power2').textContent = player2Power;
+        playerPower = player2Power;
+        playerCardsElement = document.getElementById('player2Cards');
+    }
+
+    // Display the cards to the player
+    randomCards.forEach(card => {
+        const li = document.createElement('li');
+        li.textContent = `${card.name} (Power: ${card.power})`;
+        playerCardsElement.appendChild(li);
+    });
+
+    // Update the player's power
+    playerPower += randomCards.reduce((acc, card) => acc + card.power, 0);
+    if (player === 1) {
+        document.getElementById('power1').textContent = playerPower;
+    } else {
+        document.getElementById('power2').textContent = playerPower;
     }
 
     buttonPressCount++;
