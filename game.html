@@ -155,40 +155,28 @@ function updateUI() {
 }
 
 
-    // Event Listeners
-    document.getElementById('start').addEventListener('click', function() {
-        document.getElementById('game-board').style.display = 'block';
-        document.getElementById('start').style.display = 'none';
+// Generalized event listener for meditate action
+document.querySelectorAll('[id$="-meditate"]').forEach(button => {
+    button.addEventListener('click', function() {
+        const playerIndex = parseInt(this.getAttribute('data-player'));
+        if (currentPlayer === playerIndex) {
+            game.players[playerIndex].meditate(gameCards);
+            playerActions[playerIndex] = 'meditate';
+            switchTurn();
+        }
     });
-
-document.getElementById('player1-meditate').addEventListener('click', function() {
-    if (currentPlayer === 0) {
-        game.players[0].meditate(gameCards);
-        playerActions[0] = 'meditate';
-        switchTurn();
-    }
 });
 
-    document.getElementById('player1-collect-rewards').addEventListener('click', function() {
-        if (currentPlayer === 0) {
-            playerActions[0] = 'collect';
+// Generalized event listener for collect rewards action
+document.querySelectorAll('[id$="-collect-rewards"]').forEach(button => {
+    button.addEventListener('click', function() {
+        const playerIndex = parseInt(this.getAttribute('data-player'));
+        if (currentPlayer === playerIndex) {
+            playerActions[playerIndex] = 'collect';
             switchTurn();
         }
     });
-
-document.getElementById('player2-meditate').addEventListener('click', function() {
-    if (currentPlayer === 1) {
-        game.players[1].meditate(gameCards);
-        playerActions[1] = 'meditate';
-        switchTurn();
-    }
-
-    document.getElementById('player2-collect-rewards').addEventListener('click', function() {
-        if (currentPlayer === 1) {
-            playerActions[1] = 'collect';
-            switchTurn();
-        }
-    });
+});
 });
 
 </script>
