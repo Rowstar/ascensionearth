@@ -114,22 +114,42 @@ rollForRewards() {
     }
 
     // UI Functions
-    function updateUI() {
-        document.getElementById('player1-ascension-power').textContent = game.players[0].ascensionPower;
-        document.getElementById('player2-ascension-power').textContent = game.players[1].ascensionPower;
+function updateUI() {
+    // Update Ascension Power for both players
+    document.getElementById('player1-ascension-power').textContent = game.players[0].ascensionPower;
+    document.getElementById('player2-ascension-power').textContent = game.players[1].ascensionPower;
 
-        // Update player 1's cards
-        let player1Cards = game.players[0].gameCards.map(card => `<li>${card.name} (Power: ${card.power})</li>`).join('');
-        document.getElementById('player1-cards').innerHTML = player1Cards;
+    // Update game cards for Player 1
+    let player1Cards = game.players[0].gameCards.map(card => `<li>${card.name} (Power: ${card.power})</li>`).join('');
+    document.getElementById('player1-cards').innerHTML = player1Cards;
 
-        // Update player 2's cards
-        let player2Cards = game.players[1].gameCards.map(card => `<li>${card.name} (Power: ${card.power})</li>`).join('');
-        document.getElementById('player2-cards').innerHTML = player2Cards;
+    // Update game cards for Player 2
+    let player2Cards = game.players[1].gameCards.map(card => `<li>${card.name} (Power: ${card.power})</li>`).join('');
+    document.getElementById('player2-cards').innerHTML = player2Cards;
 
-        // Update reward pools
-        document.getElementById('mountain-journey-reward-pool').innerHTML = game.mountainJourneyRewardPool.map(reward => `<li>${reward.type}: ${reward.card ? reward.card.name : ''}</li>`).join('');
-        document.getElementById('cave-journey-reward-pool').innerHTML = game.caveJourneyRewardPool.map(reward => `<li>${reward.type}: ${reward.card ? reward.card.name : ''}</li>`).join('');
-    }
+    // Update Mountain Journey Reward Pool
+    let mountainRewards = game.mountainJourneyRewardPool.map(reward => {
+        if (reward.name) { // Assuming the reward is a game card with a 'name' property
+            return `<li>${reward.name} (Power: ${reward.power})</li>`;
+        } else {
+            // Handle other reward types if any
+            return `<li>${reward.type}</li>`;
+        }
+    }).join('');
+    document.getElementById('mountain-journey-reward-pool').innerHTML = mountainRewards;
+
+    // Update Cave Journey Reward Pool (if you have logic for this in the future)
+    // For now, I'll just replicate the structure used for the mountain rewards
+    let caveRewards = game.caveJourneyRewardPool.map(reward => {
+        if (reward.name) {
+            return `<li>${reward.name} (Power: ${reward.power})</li>`;
+        } else {
+            return `<li>${reward.type}</li>`;
+        }
+    }).join('');
+    document.getElementById('cave-journey-reward-pool').innerHTML = caveRewards;
+}
+
 
     // Event Listeners
     document.getElementById('start').addEventListener('click', function() {
