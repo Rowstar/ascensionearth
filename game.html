@@ -53,8 +53,8 @@ meditate() {
         this.gameCards.push(randomCard);
         gameCards.splice(randomIndex, 1);
     }
+    updateUI(); // Refresh the UI to display the new cards
 }
-
 
     class Game {
         constructor() {
