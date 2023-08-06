@@ -36,6 +36,7 @@
 <ul id="player2-rewards"></ul> 
     </div>
 <script>
+document.addEventListener('DOMContentLoaded', function() {
 class Player {
     constructor() {
         this.actionCards = ['Meditate', 'Mountain Journey', 'Cave Journey', 'Earth Advancement'];
@@ -244,7 +245,7 @@ function updateUI() {
     document.getElementById('player2-meditate').disabled = (currentPlayer !== 1);
     document.getElementById('player2-collect-rewards').disabled = (currentPlayer !== 1); // Add this line
 }
-
+});
 
 </script>
 
