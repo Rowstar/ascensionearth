@@ -1,1 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ascension Earth Card Game</title>
+    <style>
+        /* CSS content goes here */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+        }
 
+        .player {
+            border: 1px solid #ddd;
+            padding: 20px;
+            background-color: #fff;
+        }
+
+        button {
+            margin-top: 10px;
+            padding: 10px 15px;
+            cursor: pointer;
+        }
+
+        #rewardPool {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+    </style>
+</head>
+<body>
+    <div class="player" id="player1">
+        <h2>Player 1</h2>
+        <p>Ascension Power: <span id="power1">0</span></p>
+        <button onclick="meditate(1)">Meditate</button>
+        <button onclick="reward(1)">Reward Pool</button>
+    </div>
+
+    <div class="player" id="player2">
+        <h2>Player 2</h2>
+        <p>Ascension Power: <span id="power2">0</span></p>
+        <button onclick="meditate(2)">Meditate</button>
+        <button onclick="reward(2)">Reward Pool</button>
+    </div>
+
+    <div id="rewardPool">
+        <h2>Reward Pool</h2>
+        <ul id="poolCards"></ul>
+    </div>
+
+    <script>
+const cards = [
+    { name: 'Blue Lotus', power: 5 },
+    { name: 'Magical Butterfly', power: 6 },
+    { name: 'Temple Priestess', power: 7 },
+    { name: 'Happy Holy Man', power: 8 },
+    { name: 'Ancient Turtle', power: 9 },
+    { name: 'Tree', power: 10 },
+    { name: 'Bee', power: 11 },
+    { name: 'Monk', power: 12 },
+    { name: 'Kundalini Snake', power: 13 },
+    { name: 'Enlightened Dolphin', power: 14 }
+];
+
+let player1Power = 0;
+let player2Power = 0;
+let rewardPoolCards = [];
+
+function getRandomCards(num) {
+    let randomCards = [];
+    for (let i = 0; i < num; i++) {
+        randomCards.push(cards[Math.floor(Math.random() * cards.length)]);
+    }
+    return randomCards;
+}
+
+function meditate(player) {
+    const randomCards = getRandomCards(2);
+    if (player === 1) {
+        player1Power += randomCards.reduce((acc, card) => acc + card.power, 0);
+        document.getElementById('power1').textContent = player1Power;
+    } else {
+        player2Power += randomCards.reduce((acc, card) => acc + card.power, 0);
+        document.getElementById('power2').textContent = player2Power;
+    }
+}
+
+function reward(player) {
+    if (rewardPoolCards.length === 0) {
+        alert("Reward pool is empty!");
+        return;
+    }
+
+    if (player1Power > player2Power) {
+        player1Power += rewardPoolCards.reduce((acc, card) => acc + card.power, 0);
+        document.getElementById('power1').textContent = player1Power;
+    } else {
+        player2Power += rewardPoolCards.reduce((acc, card) => acc + card.power, 0);
+        document.getElementById('power2').textContent = player2Power;
+    }
+
+    rewardPoolCards = [];
+    document.getElementById('poolCards').innerHTML = '';
+}
+
+// Add 1-3 cards to the reward pool every turn
+setInterval(() => {
+    const numCards = Math.floor(Math.random() * 3) + 1;
+    const newCards = getRandomCards(numCards);
+    rewardPoolCards = rewardPoolCards.concat(newCards);
+    const poolList = document.getElementById('poolCards');
+    newCards.forEach(card => {
+        const li = document.createElement('li');
+        li.textContent = `${card.name} (Power: ${card.power})`;
+        poolList.appendChild(li);
+    });
+}, 10000);  // Every 10 seconds
+
+    </script>
+</body>
+</html>
