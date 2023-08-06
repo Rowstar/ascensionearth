@@ -20,17 +20,20 @@
         <ul id="mountain-journey-reward-pool"></ul>
         <h2>Cave Journey Reward Pool</h2>
         <ul id="cave-journey-reward-pool"></ul>
+        <p id="current-turn">Player 1's Turn</p>
         <h2>Player 1</h2>
-        <p>Ascension Power: <span id="player1-ascension-power">0</span></p>
-        <button id="player1-meditate">Meditate</button>
-        <button id="collect-mountain-rewards">Mountain Journey Rewards</button>
-        <ul id="player1-cards"></ul>
-        <ul id="player1-rewards"></ul>
-        <h2>Player 2</h2>
-        <p>Ascension Power: <span id="player2-ascension-power">0</span></p>
-        <button id="player2-meditate">Meditate</button>
-        <ul id="player2-cards"></ul>
-        <ul id="player2-rewards"></ul> 
+<p>Ascension Power: <span id="player1-ascension-power">0</span></p>
+<button id="player1-meditate">Meditate</button>
+<button id="player1-collect-rewards">Collect Mountain Journey Rewards</button>
+<ul id="player1-cards"></ul>
+<ul id="player1-rewards"></ul>
+
+<h2>Player 2</h2>
+<p>Ascension Power: <span id="player2-ascension-power">0</span></p>
+<button id="player2-meditate">Meditate</button>
+<button id="player2-collect-rewards">Collect Mountain Journey Rewards</button>
+<ul id="player2-cards"></ul>
+<ul id="player2-rewards"></ul> 
     </div>
 <script>
 class Player {
@@ -151,15 +154,40 @@ document.getElementById('collect-mountain-rewards').addEventListener('click', fu
     currentPlayerRewardsElement.innerHTML = game.mountainJourneyRewardPool.map(reward => `<li>${reward.type}: ${reward.card ? reward.card.name : ''}</li>`).join('');
     game.players[currentPlayer].ascensionPower += game.mountainJourneyRewardPool.filter(reward => reward.type !== 'Game Card').reduce((sum, reward) => sum + reward.ascensionPower, 0);
 
+document.getElementById('player1-collect-rewards').addEventListener('click', function() {
+    if (currentPlayer === 0) {
+        // Collect rewards for Player 1
+        // ... code to collect rewards ...
+
+        switchTurn();
+    }
+});
+
+document.getElementById('player2-collect-rewards').addEventListener('click', function() {
+    if (currentPlayer === 1) {
+        // Collect rewards for Player 2
+        // ... code to collect rewards ...
+
+        switchTurn();
+    }
+});
+
+
     // Reset the Mountain Journey Reward Pool
     game.mountainJourneyRewardPool = [];
 
     // Reset game cards for the current player
     game.players[currentPlayer].gameCards = [];
 
-    // Update the UI
-    updateUI();
-});
+function updateUI() {
+
+    // Disable/Enable buttons based on the current player
+    document.getElementById('player1-meditate').disabled = (currentPlayer !== 0);
+    document.getElementById('player1-collect-rewards').disabled = (currentPlayer !== 0); // Add this line
+    document.getElementById('player2-meditate').disabled = (currentPlayer !== 1);
+    document.getElementById('player2-collect-rewards').disabled = (currentPlayer !== 1); // Add this line
+}
+
 
 </script>
 
