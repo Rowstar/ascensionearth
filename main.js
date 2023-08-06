@@ -1,3 +1,4 @@
+<script>
 class Player {
     constructor() {
         this.actionCards = ['Meditate', 'Mountain Journey', 'Cave Journey', 'Earth Advancement'];
@@ -65,3 +66,20 @@ const game = new Game();
 game.rollForRewards();
 console.log(game.mountainJourneyRewardPool);
 console.log(game.caveJourneyRewardPool);
+
+document.getElementById('player1-meditate').addEventListener('click', function() {
+  game.players[0].meditate();
+  updateUI();
+});
+
+document.getElementById('player2-meditate').addEventListener('click', function() {
+  game.players[1].meditate();
+  updateUI();
+});
+function updateUI() {
+  document.getElementById('player1-ascension-power').textContent = game.players[0].ascensionPower;
+  document.getElementById('player2-ascension-power').textContent = game.players[1].ascensionPower;
+
+  // Add code here to update other parts of the UI, such as the player's hand of cards
+}
+</script>
