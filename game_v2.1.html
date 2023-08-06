@@ -45,6 +45,7 @@ button:hover {
     </style>
 </head>
 <body>
+    <div id="turnDisplay">Player 1's Turn</div>
     <div class="player" id="player1">
         <h2>Player 1</h2>
         <p>Ascension Power: <span id="power1">0</span></p>
@@ -106,6 +107,11 @@ function addCardsToRewardPool() {
     });
 }
 
+    function updateTurnDisplay() {
+    const turnDisplay = document.getElementById('turnDisplay');
+    turnDisplay.textContent = `Player ${currentPlayer}'s Turn`;
+}
+        
 function meditate(player) {
     const randomCards = getRandomCards(2);
     let playerPower;
@@ -145,6 +151,8 @@ function meditate(player) {
         buttonPressCount = 0;
     }
     currentPlayer = (currentPlayer === 1) ? 2 : 1;
+       // Update the turn display
+    updateTurnDisplay();
 }
 
 function reward(player) {
@@ -175,6 +183,8 @@ function reward(player) {
         buttonPressCount = 0;
     }
         currentPlayer = (currentPlayer === 1) ? 2 : 1;
+        // Update the turn display
+    updateTurnDisplay();
 }
 
     </script>
