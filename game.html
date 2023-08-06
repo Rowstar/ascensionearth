@@ -44,17 +44,22 @@ document.addEventListener('DOMContentLoaded', function() {
             this.ascensionPower = 0;
         }
 
-        meditate(gameCardsPool) {
-            const numberOfCards = 3;
-            for (let i = 0; i < numberOfCards; i++) {
-                const randomIndex = Math.floor(Math.random() * gameCardsPool.length);
-                const randomCard = gameCardsPool[randomIndex];
-                this.gameCards.push(randomCard);
-                gameCardsPool.splice(randomIndex, 1);
-            }
-            updateUI(); // Refresh the UI to display the new cards
+meditate(gameCardsPool) {
+    const numberOfCards = 3;
+    for (let i = 0; i < numberOfCards; i++) {
+        const randomIndex = Math.floor(Math.random() * gameCardsPool.length);
+        const randomCard = gameCardsPool[randomIndex];
+        if (randomCard) {  // Check if the card is valid
+            this.gameCards.push(randomCard);
+            gameCardsPool.splice(randomIndex, 1);
+        } else {
+            // Handle the case where the card is not valid (e.g., log an error or select another card)
+            i--;  // Decrement the loop counter to ensure 3 cards are always selected
         }
     }
+    updateUI(); // Refresh the UI to display the new cards
+  }
+ }
     
     class Game {
         constructor() {
@@ -126,9 +131,11 @@ function updateUI() {
     let player1Cards = game.players[0].gameCards.map(card => `<li>${card.name} (Power: ${card.power})</li>`).join('');
     document.getElementById('player1-cards').innerHTML = player1Cards;
 
-    // Update game cards for Player 2
-    let player2Cards = game.players[1].gameCards.map(card => `<li>${card.name} (Power: ${card.power})</li>`).join('');
-    document.getElementById('player2-cards').innerHTML = player2Cards;
+let player2Cards = game.players[1].gameCards
+    .filter(card => card && card.name && typeof card.power !== 'undefined')
+    .map(card => `<li>${card.name} (Power: ${card.power})</li>`)
+    .join('');
+
 
     // Update Mountain Journey Reward Pool
     let mountainRewards = game.mountainJourneyRewardPool.map(reward => {
@@ -176,6 +183,9 @@ document.querySelectorAll('[id$="-collect-rewards"]').forEach(button => {
         }
     });
 });
+
+onsole.log("Selected card:", randomCard);
+console.log("Player's game cards after selection:", this.gameCards);
 
 });
 
