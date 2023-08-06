@@ -106,6 +106,7 @@ function addCardsToRewardPool() {
 }
 
 function meditate(player) {
+    disableButtons(player);
     const randomCards = getRandomCards(2);
     let playerPower;
     let playerCardsElement;
@@ -133,9 +134,27 @@ function meditate(player) {
         document.getElementById('power2').textContent = playerPower;
     }
 
-    buttonPressCount++;
+function disableButtons(player) {
+    if (player === 1) {
+        document.getElementById('player2Meditate').disabled = true;
+        document.getElementById('player2Reward').disabled = true;
+    } else {
+        document.getElementById('player1Meditate').disabled = true;
+        document.getElementById('player1Reward').disabled = true;
+    }
+}
+
+function enableButtons() {
+    document.getElementById('player1Meditate').disabled = false;
+    document.getElementById('player1Reward').disabled = false;
+    document.getElementById('player2Meditate').disabled = false;
+    document.getElementById('player2Reward').disabled = false;
+}
+    
+   buttonPressCount++;
     if (buttonPressCount === 2) {
         addCardsToRewardPool();
+        enableButtons();
         buttonPressCount = 0;
     }
 }
