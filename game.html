@@ -45,10 +45,16 @@ document.addEventListener('DOMContentLoaded', function() {
             this.ascensionPower = 0;
         }
 
-        meditate() {
-            this.ascensionPower += 1;
-        }
+meditate() {
+    const numberOfCards = 3;
+    for (let i = 0; i < numberOfCards; i++) {
+        const randomIndex = Math.floor(Math.random() * gameCards.length);
+        const randomCard = gameCards[randomIndex];
+        this.gameCards.push(randomCard);
+        gameCards.splice(randomIndex, 1);
     }
+}
+
 
     class Game {
         constructor() {
