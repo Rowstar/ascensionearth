@@ -11,6 +11,7 @@
 <body>
     <h1>Ascension Earth Board Game</h1>
     <button id="start">Start Game</button>
+    <button id="roll-rewards">Roll for Rewards</button>
     <div id="game-board">
         <h2>Mountain Journey Reward Pool</h2>
         <ul id="mountain-journey-reward-pool"></ul>
@@ -131,6 +132,10 @@ function updateUI() {
     // Update player 2's cards
     let player2Cards = game.players[1].gameCards.map(card => `<li>${card.name} (Power: ${card.power})</li>`).join('');
     document.getElementById('player2-cards').innerHTML = player2Cards;
+
+     // Update reward pools
+    document.getElementById('mountain-journey-reward-pool').innerHTML = game.mountainJourneyRewardPool.map(reward => `<li>${reward.type}: ${reward.card ? reward.card.name : ''}</li>`).join('');
+    document.getElementById('cave-journey-reward-pool').innerHTML = game.caveJourneyRewardPool.map(reward => `<li>${reward.type}: ${reward.card ? reward.card.name : ''}</li>`).join('');
 }
 
 </script>
