@@ -4,6 +4,7 @@
     <title>Ascension Earth Board Game</title>
     <style>
         #game-board {
+         display: none;
         }
     button {
         color: white;
@@ -132,7 +133,10 @@ function updateUI() {
     document.getElementById('mountain-journey-reward-pool').innerHTML = game.mountainJourneyRewardPool.map(reward => `<li>${reward.type}: ${reward.card ? reward.card.name : ''}</li>`).join('');
     document.getElementById('cave-journey-reward-pool').innerHTML = game.caveJourneyRewardPool.map(reward => `<li>${reward.type}: ${reward.card ? reward.card.name : ''}</li>`).join('');
 }
-
+    document.getElementById('start').addEventListener('click', function() {
+        document.getElementById('game-board').style.display = 'block'; // Show the game board
+        document.getElementById('start').style.display = 'none'; // Hide the Start Game button
+    });
 </script>
 
 </body>
