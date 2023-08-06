@@ -115,15 +115,6 @@ game.rollForRewards();
 console.log(game.mountainJourneyRewardPool);
 console.log(game.caveJourneyRewardPool);
 
-document.getElementById('player1-meditate').addEventListener('click', function() {
-  game.players[0].meditate();
-  updateUI();
-});
-
-document.getElementById('player2-meditate').addEventListener('click', function() {
-  game.players[1].meditate();
-  updateUI();
-});
 function updateUI() {
     document.getElementById('player1-ascension-power').textContent = game.players[0].ascensionPower;
     document.getElementById('player2-ascension-power').textContent = game.players[1].ascensionPower;
@@ -177,6 +168,7 @@ document.getElementById('player2-collect-rewards').addEventListener('click', fun
 
     document.getElementById('player1-meditate').addEventListener('click', function() {
     if (currentPlayer === 0) {
+        game.players[0].meditate();
         playerActions[0] = 'meditate';
         evaluateActions();
         switchTurn();
@@ -193,6 +185,7 @@ document.getElementById('player1-collect-rewards').addEventListener('click', fun
 
 document.getElementById('player2-meditate').addEventListener('click', function() {
     if (currentPlayer === 1) {
+        game.players[1].meditate();
         playerActions[1] = 'meditate';
         evaluateActions();
         switchTurn();
