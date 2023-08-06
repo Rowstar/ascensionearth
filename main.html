@@ -5,6 +5,9 @@
     <style>
         #game-board {
         }
+    button {
+        color: white;
+    }
     </style>
 </head>
 <body>
@@ -18,20 +21,13 @@
         <ul id="cave-journey-reward-pool"></ul>
         <h2>Player 1</h2>
         <p>Ascension Power: <span id="player1-ascension-power">0</span></p>
+        <button id="player1-meditate">Meditate</button>
+        <ul id="player1-cards"></ul>
         <h2>Player 2</h2>
         <p>Ascension Power: <span id="player2-ascension-power">0</span></p>
+        <button id="player2-meditate">Meditate</button>
+        <ul id="player2-cards"></ul>
     </div>
-<h2>Player 1</h2>
-<p>Ascension Power: <span id="player1-ascension-power">0</span></p>
-<button id="player1-meditate">Meditate</button>
-<ul id="player1-cards"></ul>
-
-<h2>Player 2</h2>
-<p>Ascension Power: <span id="player2-ascension-power">0</span></p>
-<button id="player2-meditate">Meditate</button>
-<ul id="player2-cards"></ul>
-
-
 <script>
 class Player {
     constructor() {
