@@ -6,7 +6,13 @@ class Player {
         this.artifacts = [];
         this.teachings = [];
         this.ascensionPower = 0;
+    }    
+    meditate() {
+    // Draw 4 game cards
+    for (let i = 0; i < 4; i++) {
+      this.gameCards.push(game.drawGameCard());
     }
+  }
 }
 
 class Game {
@@ -23,6 +29,10 @@ class Game {
         this.mountainJourneyRewardPool = [];
         this.caveJourneyRewardPool = [];
     }
+
+    drawGameCard() {
+    return this.gameCards.pop();
+  }
 
     shuffle(array) {
         for (let i = array.length - 1; i > 0; i--) {
