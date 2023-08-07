@@ -181,6 +181,7 @@ function meditate() {
     gameState.players[0].cards.push(card1, card2);
 
     console.log('You drew the cards: ' + card1.name + ' and ' + card2.name);
+    gameState.players.forEach(updatePlayerDisplay)
 }
 
 // Function for rolling dice
