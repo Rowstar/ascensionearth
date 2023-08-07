@@ -87,6 +87,102 @@ class EarthAdvancementCard {
         this.ascensionPower = ascensionPower;
     }
 }
+        function setupGame() {
+    // Create some game cards
+    let gameCards = [
+        new GameCard("Blue Lotus", "Common", "Plant", 5),
+        new GameCard("Magical Butterfly", "Common", "Animal", 6),
+        // Add the rest of your cards...
+    ];
+
+    // Initialize game state
+    let gameState = {
+        players: [{
+            name: "Player 1",
+            cards: [],
+            crystals: 0,
+            crystalShards: 0,
+            spells: [],
+            artifacts: []
+        }, {
+            name: "NPC 1",
+            cards: [],
+            crystals: 0,
+            crystalShards: 0,
+            spells: [],
+            artifacts: []
+        }, {
+            name: "NPC 2",
+            cards: [],
+            crystals: 0,
+            crystalShards: 0,
+            spells: [],
+            artifacts: []
+        }],
+        gameCards: gameCards,
+        turn: 0
+    };
+    return gameState;
+}
+// An array to hold all game cards
+let gameCards = [
+    new GameCard('Blue Lotus', 'Common', 'Plant', 5),
+    new GameCard('Magical Butterfly', 'Common', 'Animal', 6),
+    // ... add other game cards
+];
+
+// An array to hold all spell cards
+let spellCards = [
+    new SpellCard('Empower the Meek', 'Double the Ascension Power of 1 Grey & 1 Gold Game Card in a Challenge', 25),
+    // ... add other spell cards
+];
+
+// An array to hold all artifact cards
+let artifactCards = [
+    new ArtifactCard('Mystic Orb', 'Gain the ability to cast 1 free Third Eye Awakening Spell in each Challenge', 10),
+    // ... add other artifact cards
+];
+
+// An array to hold all spiritual teaching cards
+let spiritualTeachingCards = [
+    new SpiritualTeachingCard('"Be the change you wish to see in the world." - Mahatma Gandhi'),
+    // ... add other spiritual teaching cards
+];
+
+// An array to hold all earth advancement cards
+let earthAdvancementCards = [
+    new EarthAdvancementCard('World Peace', 50, 100),
+    // ... add other earth advancement cards
+];
+
+// Function to draw random game card
+function drawGameCard() {
+    let randomIndex = Math.floor(Math.random() * gameCards.length);
+    return gameCards[randomIndex];
+}
+
+// Function for meditate action
+function meditate() {
+    let card1 = drawGameCard();
+    let card2 = drawGameCard();
+
+    // Here you could add code to add these cards to the player's hand, display them on the screen, etc.
+    console.log('You drew the cards: ' + card1.name + ' and ' + card2.name);
+}
+
+// Function for rolling dice
+function rollDice() {
+    return Math.floor(Math.random() * 6) + 1; // Random number between 1 and 6
+}
+
+// Function for rolling rewards
+function rollRewards() {
+    let roll1 = rollDice();
+    let roll2 = rollDice();
+
+    // Here you could add code to add these rewards to the reward pool, display them on the screen, etc.
+    console.log('You rolled the numbers: ' + roll1 + ' and ' + roll2);
+}
     </script>
 </body>
 </html>
