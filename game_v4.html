@@ -200,26 +200,32 @@ function rollRewards() {
     console.log('You rolled the numbers: ' + roll1 + ' and ' + roll2);
 }
 
-    function updatePlayerDisplay(player, playerIndex) {
-    document.getElementById(`player${playerIndex}-name`).innerText = player.name;
-    document.getElementById(`player${playerIndex}-cards`).innerText = 'Cards: ' + player.cards.length;
-    document.getElementById(`player${playerIndex}-crystals`).innerText = 'Crystals: ' + player.crystals;
-    document.getElementById(`player${playerIndex}-crystalShards`).innerText = 'Crystal Shards: ' + player.crystalShards;
-    document.getElementById(`player${playerIndex}-spells`).innerText = 'Spells: ' + player.spells.length;
-    document.getElementById(`player${playerIndex}-artifacts`).innerText = 'Artifacts: ' + player.artifacts.length;
-    document.getElementById(`player${playerIndex}-rewards`).innerText = 'Rewards: ' + player.rewards;
+function updatePlayerDisplay(player, playerIndex) {
+    document.getElementById(`player${playerIndex+1}-name`).innerText = player.name;
+    document.getElementById(`player${playerIndex+1}-cards`).innerText = 'Cards: ' + player.cards.length;
+    document.getElementById(`player${playerIndex+1}-crystals`).innerText = 'Crystals: ' + player.crystals;
+    document.getElementById(`player${playerIndex+1}-crystalShards`).innerText = 'Crystal Shards: ' + player.crystalShards;
+    document.getElementById(`player${playerIndex+1}-spells`).innerText = 'Spells: ' + player.spells.length;
+    document.getElementById(`player${playerIndex+1}-artifacts`).innerText = 'Artifacts: ' + player.artifacts.length;
+    document.getElementById(`player${playerIndex+1}-rewards`).innerText = 'Rewards: ' + player.rewards;
 }
+
 let gameState;
 
 window.onload = function() {
     gameState = setupGame();
-    // Call this function for each player after each action
     gameState.players.forEach(updatePlayerDisplay);
-    
+
     // Add event listeners to buttons
-    document.getElementById('meditate-button').addEventListener('click', meditate);
-    document.getElementById('mountain-journey-button').addEventListener('click', rollRewards);
-    // Add event listeners for the other buttons...
+    document.getElementById('meditate-button').addEventListener('click', function() {
+        meditate();
+        gameState.players.forEach(updatePlayerDisplay);
+    });
+    document.getElementById('mountain-journey-button').addEventListener('click', function() {
+        rollRewards();
+        gameState.players.forEach(updatePlayerDisplay);
+    });
+    // Add similar lines for the other buttons
 };
 
     </script>
