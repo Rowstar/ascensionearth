@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Ascension Earth Web Game</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .game-board {
+            width: 100%;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        .player-turn-display, .game-message-display {
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid black;
+        }
+        .card-slot {
+            margin: 20px;
+            padding: 20px;
+            border: 1px solid black;
+        }
+        button {
+            margin: 10px;
+            padding: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-board">
+        <h1>Ascension Earth Web Game</h1>
+        <div class="player-turn-display"></div>
+        <div class="game-message-display"></div>
+
+        <div class="card-slot meditate-slot"></div>
+        <div class="card-slot mountain-journey-slot"></div>
+        <div class="card-slot cave-journey-slot"></div>
+        <div class="card-slot earth-advancement-slot"></div>
+        <div class="card-slot spiritual-teachings-slot"></div>
+
+        <button id="meditate-button">Meditate</button>
+        <button id="mountain-journey-button">Mountain Journey</button>
+        <button id="cave-journey-button">Cave Journey</button>
+        <button id="earth-advancement-button">Earth Advancement</button>
+    </div>
+
+    <script>
+      class GameCard {
+    constructor(name, rarity, type, ascensionPower) {
+        this.name = name;
+        this.rarity = rarity;
+        this.type = type;
+        this.ascensionPower = ascensionPower;
+    }
+}
+
+class SpellCard {
+    constructor(name, description, ascensionPower) {
+        this.name = name;
+        this.description = description;
+        this.ascensionPower = ascensionPower;
+    }
+}
+
+class ArtifactCard {
+    constructor(name, description, ascensionPower) {
+        this.name = name;
+        this.description = description;
+        this.ascensionPower = ascensionPower;
+    }
+}
+
+class SpiritualTeachingCard {
+    constructor(description) {
+        this.description = description;
+    }
+}
+
+class EarthAdvancementCard {
+    constructor(name, price, ascensionPower) {
+        this.name = name;
+        this.price = price;
+        this.ascensionPower = ascensionPower;
+    }
+}
+    </script>
+</body>
+</html>
