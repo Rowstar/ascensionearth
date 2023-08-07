@@ -42,10 +42,19 @@
         <div class="card-slot earth-advancement-slot"></div>
         <div class="card-slot spiritual-teachings-slot"></div>
 
+<div id="player1-display" class="player-display">
+    <h2 id="player1-name"></h2>
+    <p id="player1-cards"></p>
+    <p id="player1-crystals"></p>
+    <p id="player1-crystalShards"></p>
+    <p id="player1-spells"></p>
+    <p id="player1-artifacts"></p>
+    <p id="player1-rewards"></p>
         <button id="meditate-button">Meditate</button>
         <button id="mountain-journey-button">Mountain Journey</button>
         <button id="cave-journey-button">Cave Journey</button>
         <button id="earth-advancement-button">Earth Advancement</button>
+</div>
     </div>
 
     <script>
@@ -190,10 +199,21 @@ function rollRewards() {
     console.log('You rolled the numbers: ' + roll1 + ' and ' + roll2);
 }
 
+    function updatePlayerDisplay(player, playerIndex) {
+    document.getElementById(`player${playerIndex}-name`).innerText = player.name;
+    document.getElementById(`player${playerIndex}-cards`).innerText = 'Cards: ' + player.cards.length;
+    document.getElementById(`player${playerIndex}-crystals`).innerText = 'Crystals: ' + player.crystals;
+    document.getElementById(`player${playerIndex}-crystalShards`).innerText = 'Crystal Shards: ' + player.crystalShards;
+    document.getElementById(`player${playerIndex}-spells`).innerText = 'Spells: ' + player.spells.length;
+    document.getElementById(`player${playerIndex}-artifacts`).innerText = 'Artifacts: ' + player.artifacts.length;
+    document.getElementById(`player${playerIndex}-rewards`).innerText = 'Rewards: ' + player.rewards;
+}
 let gameState;
 
 window.onload = function() {
     gameState = setupGame();
+    // Call this function for each player after each action
+    gameState.players.forEach(updatePlayerDisplay);
     
     // Add event listeners to buttons
     document.getElementById('meditate-button').addEventListener('click', meditate);
