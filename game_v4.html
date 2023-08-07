@@ -87,12 +87,11 @@ class EarthAdvancementCard {
         this.ascensionPower = ascensionPower;
     }
 }
-        function setupGame() {
+function setupGame() {
     // Create some game cards
     let gameCards = [
         new GameCard("Blue Lotus", "Common", "Plant", 5),
         new GameCard("Magical Butterfly", "Common", "Animal", 6),
-        // Add the rest of your cards...
     ];
 
     // Initialize game state
@@ -103,27 +102,31 @@ class EarthAdvancementCard {
             crystals: 0,
             crystalShards: 0,
             spells: [],
-            artifacts: []
+            artifacts: [],
+            rewards: 0  // Added rewards property for players
         }, {
             name: "NPC 1",
             cards: [],
             crystals: 0,
             crystalShards: 0,
             spells: [],
-            artifacts: []
+            artifacts: [],
+            rewards: 0  // Added rewards property for players
         }, {
             name: "NPC 2",
             cards: [],
             crystals: 0,
             crystalShards: 0,
             spells: [],
-            artifacts: []
+            artifacts: [],
+            rewards: 0  // Added rewards property for players
         }],
         gameCards: gameCards,
         turn: 0
     };
     return gameState;
 }
+
 // An array to hold all game cards
 let gameCards = [
     new GameCard('Blue Lotus', 'Common', 'Plant', 5),
@@ -166,7 +169,8 @@ function meditate() {
     let card1 = drawGameCard();
     let card2 = drawGameCard();
 
-    // Here you could add code to add these cards to the player's hand, display them on the screen, etc.
+    gameState.players[0].cards.push(card1, card2);
+
     console.log('You drew the cards: ' + card1.name + ' and ' + card2.name);
 }
 
@@ -180,9 +184,23 @@ function rollRewards() {
     let roll1 = rollDice();
     let roll2 = rollDice();
 
-    // Here you could add code to add these rewards to the reward pool, display them on the screen, etc.
+    let rewards = (roll1 <= 3 ? 1 : 2) + (roll2 <= 3 ? 1 : 2);
+    gameState.players[0].rewards += rewards;
+
     console.log('You rolled the numbers: ' + roll1 + ' and ' + roll2);
 }
+
+let gameState;
+
+window.onload = function() {
+    gameState = setupGame();
+    
+    // Add event listeners to buttons
+    document.getElementById('meditate-button').addEventListener('click', meditate);
+    document.getElementById('mountain-journey-button').addEventListener('click', rollRewards);
+    // Add event listeners for the other buttons...
+};
+
     </script>
 </body>
 </html>
