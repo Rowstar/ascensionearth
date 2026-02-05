@@ -14,7 +14,8 @@ import {
   setupChallenge
 } from "../engine/rules";
 import { effectHandlers, resolveThirdEyeSelection, triggerEffects } from "../engine/effects";
-import { ChallengeState } from "../engine/types";
+import { ChallengeState, RewardPool } from "../engine/types";
+import { buildProgressReview } from "../engine/progression";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -359,7 +360,7 @@ export function runSmokeTests(): void {
   const guardianSoloState = createNewGame("guardian-solo");
   const soloPlayer = guardianSoloState.players[0];
   const soloArtifactId = dataStore.artifacts[0]?.id ?? "magnetic_crystal";
-  const soloRewardPool = { id: "MOUNTAIN" as const, dice: [6, 6], rewards: [{ kind: "artifact", cardId: soloArtifactId }] };
+  const soloRewardPool: RewardPool = { id: "MOUNTAIN", dice: [6, 6], rewards: [{ kind: "artifact", cardId: soloArtifactId }] };
   const soloChallenge = setupChallenge(guardianSoloState, rng, {
     id: "MOUNTAIN",
     contestants: [soloPlayer.id],
@@ -375,8 +376,8 @@ export function runSmokeTests(): void {
   const gp1 = guardianPairState.players[0];
   const gp2 = guardianPairState.players[1];
   const rewardCardId = dataStore.cards[0]?.id ?? "healer";
-  const pairPool = {
-    id: "CAVE" as const,
+  const pairPool: RewardPool = {
+    id: "CAVE",
     dice: [1, 4],
     rewards: [
       { kind: "crystal", count: 2 },
@@ -394,6 +395,28 @@ export function runSmokeTests(): void {
   assert(pairDraft.pickOrderPlayerIds[0] === gp1.id, "Draft order should start with highest AP contributor.");
   const unlockedCount = pairChallenge.rewardPool?.rewards.filter((r) => r.isUnlocked).length ?? 0;
   assert(unlockedCount >= 2, "Total group AP should unlock both crystal and game card rewards.");
+
+  const reviewSeed = "review-determinism";
+  const reviewStateA = createNewGame(reviewSeed);
+  const reviewStateB = createNewGame(reviewSeed);
+  reviewStateA.turn = 5;
+  reviewStateB.turn = 5;
+  reviewStateA.players[0].crystals = 12;
+  reviewStateB.players[0].crystals = 12;
+  reviewStateA.players[0].teachings.push("open_attention");
+  reviewStateB.players[0].teachings.push("open_attention");
+  const reviewRngA = new Rng(reviewSeed);
+  const reviewRngB = new Rng(reviewSeed);
+  const reviewA = buildProgressReview(reviewStateA, reviewRngA).review;
+  const reviewB = buildProgressReview(reviewStateB, reviewRngB).review;
+  assert(
+    reviewA.winnerPlayerId === reviewB.winnerPlayerId &&
+      reviewA.categoryId === reviewB.categoryId,
+    "Progress review winner/category should be deterministic for same seed and state."
+  );
+  const optionsA = reviewA.trophyOptions.map((opt) => opt.id).join(",");
+  const optionsB = reviewB.trophyOptions.map((opt) => opt.id).join(",");
+  assert(optionsA === optionsB, "Progress review trophy options should be deterministic for same seed and state.");
 
   console.log("Ascension Earth smoke tests passed.");
 }
@@ -441,9 +464,6 @@ export function simulateTurns(seed = "debug-sim", turns = 10): void {
     if (store.state.phase === "ACTION_REVEAL") {
       store.dispatch({ type: "LOCK_ACTIONS" });
       continue;
-    }
-    if (store.state.phase === "GAME_OVER") {
-      break;
     }
     if (store.state.phase === "ROLL_POOLS") {
       store.dispatch({ type: "ROLL_POOLS" });

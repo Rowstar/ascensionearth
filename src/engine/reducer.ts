@@ -1532,7 +1532,7 @@ function enqueueAiAction(state: GameState, action: AiQueuedActionInput): void {
     state.aiQueue = [];
   }
   if (state.aiActive) {
-    state.aiQueue.push(action);
+    state.aiQueue.push({ ...action, remainingMs: 0 });
   } else {
     startAiAction(state, action);
   }

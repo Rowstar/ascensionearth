@@ -17,3 +17,8 @@
 - Before work: read STUDIO_OS.md + VISION.md + STUDIO_MEMORY.md + DECISION_LOG.md + CURRENT_STATE.md.
 - During work: run a plan-first loop with explicit constraints and risks.
 - After meaningful work: update CURRENT_STATE.md, STUDIO_MEMORY.md, and DECISION_LOG.md if a major decision was made.
+
+## Session Learnings (2026-02-05)
+- Rewards in macro progression systems should be AP-first; avoid granting cards, artifacts, spells, or invocations from those systems.
+- Deterministic seeded behavior is required for review/evaluation reward sampling so balancing is reproducible.
+- Explanations matter: players should be told baseline thresholds, winner reasons, and reward intent directly in UI copy.

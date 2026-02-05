@@ -3,6 +3,7 @@ import { ActionChoice, ChallengeState, GameState, PlayerState } from "./types";
 import {
   canBuyEarthAdvancement,
   cardValue,
+  earthAdvancementMissingRequirements,
   rewardPoolValue,
   CHALLENGE_COMMIT_MAX,
   SHOP_CARD_COST,
@@ -84,7 +85,37 @@ function estimateHandStrength(player: PlayerState): number {
 export function chooseAiEarthTier(state: GameState, player: PlayerState): 1 | 2 | 3 {
   if (canBuyEarthAdvancement(state, player, 3)) return 3;
   if (canBuyEarthAdvancement(state, player, 2)) return 2;
-  return 1;
+  if (canBuyEarthAdvancement(state, player, 1)) return 1;
+
+  const tiers: Array<1 | 2 | 3> = [3, 2, 1];
+  const scored = tiers.map((tier) => {
+    const nextId = tier === 1 ? state.decks.earthAdvancementsT1[0] : tier === 2 ? state.decks.earthAdvancementsT2[0] : state.decks.earthAdvancementsT3[0];
+    const card = nextId ? dataStore.earthAdvancementsById[nextId] : undefined;
+    if (!card) return { tier, score: -999 };
+    const missing = earthAdvancementMissingRequirements(card, player);
+    const score = (card.apReward ?? 0) - missing.length * 5;
+    return { tier, score };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return scored[0]?.tier ?? 1;
+}
+
+function aiEarthNeeds(state: GameState, player: PlayerState): { wantsCards: boolean; wantsInvocations: boolean } {
+  const tier = chooseAiEarthTier(state, player);
+  const nextId = tier === 1 ? state.decks.earthAdvancementsT1[0] : tier === 2 ? state.decks.earthAdvancementsT2[0] : state.decks.earthAdvancementsT3[0];
+  const card = nextId ? dataStore.earthAdvancementsById[nextId] : undefined;
+  if (!card) {
+    return { wantsCards: false, wantsInvocations: false };
+  }
+  const req = card.requirements ?? { crystals: 0 };
+  const rarityNeed =
+    (req.cardsByRarity?.common ?? 0) +
+    (req.cardsByRarity?.uncommon ?? 0) +
+    (req.cardsByRarity?.rare ?? 0) +
+    (req.cardsByRarity?.cosmic ?? 0);
+  const wantsCards = (req.cardsAny ?? 0) + rarityNeed > 0;
+  const wantsInvocations = Math.max(0, req.spells ?? 0) + Math.max(0, req.invocations ?? 0) > 0;
+  return { wantsCards, wantsInvocations };
 }
 
 export function decideAiAction(state: GameState, player: PlayerState, rng: Rng): ActionChoice {
@@ -106,6 +137,11 @@ export function decideAiAction(state: GameState, player: PlayerState, rng: Rng):
   const canBuyEarth =
     earthRemaining > 0 &&
     (canBuyEarthAdvancement(state, player, 1) || canBuyEarthAdvancement(state, player, 2) || canBuyEarthAdvancement(state, player, 3));
+  const preferredEarthTier = chooseAiEarthTier(state, player);
+  const preferredEarthId =
+    preferredEarthTier === 1 ? state.decks.earthAdvancementsT1[0] : preferredEarthTier === 2 ? state.decks.earthAdvancementsT2[0] : state.decks.earthAdvancementsT3[0];
+  const preferredEarth = preferredEarthId ? dataStore.earthAdvancementsById[preferredEarthId] : undefined;
+  const earthMissing = preferredEarth ? earthAdvancementMissingRequirements(preferredEarth, player).length : 99;
 
   // Rough prediction of how attractive each action is to opponents (no hidden info).
   const opponents = state.players.filter((p) => p.id !== player.id);
@@ -142,7 +178,12 @@ export function decideAiAction(state: GameState, player: PlayerState, rng: Rng):
   const needRefillBoost = clamp((3 - myHand) * 2.4 + (mySpells === 0 ? 4 : 0), 0, 14);
 
   // Earth purchase value is hard to compute without peeking deck order; treat it as score+tempo.
-  const earthValue = canBuyEarth ? 16 + clamp(myEconomy / 50, 0, 8) + (lateGame ? 6 : 0) : -999;
+  const nearEarth = earthMissing <= 2;
+  const earthValue = canBuyEarth
+    ? 18 + clamp(myEconomy / 45, 0, 10) + (lateGame ? 6 : 0)
+    : nearEarth
+      ? 8 + (lateGame ? 3 : 0) - earthMissing * 2
+      : -999;
 
   // Journey utilities: expected pool reward - expected burn risk + situational boosts.
   const journeyBoost = clamp((myTeachings > 0 ? 1 : 0) + (mySpells > 0 ? 1 : 0), 0, 2);
@@ -442,10 +483,17 @@ export function decideAiShopPurchase(
   // Desire signals
   const needCards = clamp((4 - myHand) / 4, 0, 1); // strong if hand is small
   const needSpells = clamp((2 - mySpells) / 2, 0, 1); // strong if spells are low
+  const earthNeeds = aiEarthNeeds(state, player);
 
   // Utilities: prefer spells when contests are hot; prefer cards when hand is thin.
   let uCard = 0.4 + 1.2 * needCards + 0.3 * (crystalsTotal >= 8 ? 1 : 0) - 0.25; // cost pressure
   let uSpell = 0.3 + 1.4 * needSpells + 0.8 * contestHeat + (lateGame ? 0.25 : 0) - 0.55; // more expensive
+  if (earthNeeds.wantsCards) {
+    uCard += 0.6;
+  }
+  if (earthNeeds.wantsInvocations) {
+    uSpell += 0.8;
+  }
 
   // If we can't afford something, nuke its utility.
   if (!canBuyCard) uCard = -999;

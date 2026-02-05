@@ -12,17 +12,23 @@
 - Save/load support plus persisted preferences (sound, music, speed, motion, particle quality, parallax).
 - Data-driven content from JSON sets (cards, spells, artifacts, teachings).
 - In-browser test harness available via `runAscensionTests()` in the console.
+- Progress Review rounds now trigger every 5 turns (configurable) with one-turn warning, baseline checks, trophy category winner resolution, and seeded deterministic 3-option trophy rewards.
+- Trophy system now includes multi-category scoring with cooldown-aware sampling and winner explanation UI.
+- Earth Advancement is redesigned around multi-requirement combinations (crystals + other resources) and AP-focused rewards with tiny passives.
+- Endgame Evaluation phase now triggers after max rounds (default 10, configurable), evaluates run categories, and grants themed AP rewards.
+- AI decisioning now factors Earth requirement needs and AP-oriented progression goals.
 
 ## Known Issues / Gaps
 - Automated tests are minimal; most validation is still manual playtesting.
 - UI complexity is growing, so periodic readability and hierarchy passes are needed.
-- Studio OS memory workflow was not yet wired into docs before this session.
+- Build reports an existing Vite warning about mixed static/dynamic imports for `src/render/sfx.ts`.
+- Macro-progression numbers (baseline scaling, AP reward scaling, trophy cadence feel) still need dedicated balance passes.
 
 ## Current Focus
-- Install Studio OS as the governing workflow and institutional memory layer.
-- Keep feature momentum while preserving clarity-first UX standards.
-- Standardize planning and post-implementation fidelity reviews.
+- Balance and tune progression cadence for Progress Reviews, Earth Advancement costs, and endgame Evaluation rewards.
+- Improve explanation UX density so new systems stay legible on desktop and mobile.
+- Expand deterministic verification beyond smoke tests as progression systems grow.
 
 ## Open Questions (High-Level)
-- For the next milestone, should priority lean toward deeper strategy, stronger world flavor, or faster match pacing?
-- What exact bar should define "vertical slice ready" for CEO sign-off?
+- Next priority direction: should tuning favor faster AP progression pace or stronger strategic divergence between trophy categories?
+- Should the default run length remain 10 rounds, or move longer once progression loops feel stable?

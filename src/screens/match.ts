@@ -1,4 +1,4 @@
-import { ActionChoice, ChallengeState, EarthAdvancementData, GameAction, GameState, ProgressReviewState, TeachingData, TeachingTier } from "../engine/types";
+import { ActionChoice, ChallengeState, EarthAdvancementData, GameAction, GameCardData, GameState, ProgressReviewState, TeachingData, TeachingTier } from "../engine/types";
 import {
   CAVE_MYTHIC_THRESHOLD,
   CAVE_RARE_THRESHOLD,
@@ -604,7 +604,7 @@ const COMMIT_RULES = {
 
 type RarityTier = "common" | "uncommon" | "rare" | "cosmic";
 
-function rarityForGameCard(card: { category: string; tags: string[]; basePower: number } | undefined): RarityTier {
+function rarityForGameCard(card: GameCardData | undefined): RarityTier {
   if (!card) return "common";
   // Cosmic is identity-based (legacy cosmic set), not threshold-based.
   if (card.category === "cosmic" || (card.tags ?? []).includes("Cosmic")) return "cosmic";
@@ -627,13 +627,13 @@ function rarityStroke(tier: RarityTier): string {
   }
 }
 
-function getRarityStrokeForCard(card: { category: string; tags: string[]; basePower: number } | undefined): string {
+function getRarityStrokeForCard(card: GameCardData | undefined): string {
   return rarityStroke(rarityForGameCard(card));
 }
 
 function drawOpponentHiddenCommittedCard(
   ctx: CanvasRenderingContext2D,
-  card: { category: string; tags: string[]; basePower: number },
+  card: GameCardData,
   x: number,
   y: number,
   w: number,
@@ -2058,13 +2058,13 @@ function drawPlayerHand(
 
     let items: HandItem[] = [];
     if (activeTab === "CARDS") {
-      items = visibleCards.map((entry) => ({ kind: "card", ...entry }));
+      items = visibleCards.map((entry) => ({ kind: "card" as const, ...entry }));
     } else if (activeTab === "INVOCATIONS") {
-      items = visibleSpells.map((spellId, idx) => ({ kind: "spell", spellId, idx }));
+      items = visibleSpells.map((spellId, idx) => ({ kind: "spell" as const, spellId, idx }));
     } else {
       items = [
-        ...visibleCards.map((entry) => ({ kind: "card", ...entry })),
-        ...visibleSpells.map((spellId, idx) => ({ kind: "spell", spellId, idx }))
+        ...visibleCards.map((entry) => ({ kind: "card" as const, ...entry })),
+        ...visibleSpells.map((spellId, idx) => ({ kind: "spell" as const, spellId, idx }))
       ];
     }
 
@@ -2244,13 +2244,13 @@ function drawPlayerHand(
 
   let items: HandItem[] = [];
   if (activeTab === "CARDS") {
-    items = visibleCards.map((entry) => ({ kind: "card", ...entry }));
+    items = visibleCards.map((entry) => ({ kind: "card" as const, ...entry }));
   } else if (activeTab === "INVOCATIONS") {
-    items = visibleSpells.map((spellId, idx) => ({ kind: "spell", spellId, idx }));
+    items = visibleSpells.map((spellId, idx) => ({ kind: "spell" as const, spellId, idx }));
   } else {
     items = [
-      ...visibleCards.map((entry) => ({ kind: "card", ...entry })),
-      ...visibleSpells.map((spellId, idx) => ({ kind: "spell", spellId, idx }))
+      ...visibleCards.map((entry) => ({ kind: "card" as const, ...entry })),
+      ...visibleSpells.map((spellId, idx) => ({ kind: "spell" as const, spellId, idx }))
     ];
   }
 
@@ -4968,10 +4968,13 @@ function drawProgressReviewModal(
   wrapText(ctx, `Baseline passers: ${passersText}`, panelW - 40).forEach((line, idx) => {
     ctx.fillText(line, x + 20, y + 78 + idx * 16);
   });
+  ctx.fillStyle = "rgba(196,220,246,0.9)";
+  ctx.font = "11px 'Source Serif 4', serif";
+  ctx.fillText("3 trophies are sampled each review (cooldown: 2 reviews, includes at least one broad strategy).", x + 20, y + 108);
 
   ctx.fillStyle = "#d6e3ff";
   ctx.font = "600 14px 'Cinzel', serif";
-  const categoryY = y + 118;
+  const categoryY = y + 130;
   ctx.fillText(`Category: ${review.categoryName}`, x + 20, categoryY);
   ctx.fillStyle = "rgba(245,241,230,0.9)";
   ctx.font = "12px 'Source Serif 4', serif";
