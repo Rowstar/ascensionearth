@@ -1,0 +1,58 @@
+{
+  "earthAdvancements": [
+    {
+      "id": "community_garden",
+      "name": "Community Garden",
+      "tier": 1,
+      "costCrystals": 8,
+      "value": 8,
+      "rewards": {
+        "gameCards": 2
+      }
+    },
+    {
+      "id": "river_cleanup",
+      "name": "River Cleanup",
+      "tier": 1,
+      "costCrystals": 10,
+      "value": 10,
+      "rewards": {
+        "gameCards": 2,
+        "spells": 1
+      }
+    },
+    {
+      "id": "solar_rooftops",
+      "name": "Solar Rooftops",
+      "tier": 2,
+      "costCrystals": 16,
+      "value": 16,
+      "rewards": {
+        "spells": 1,
+        "gameCards": 1
+      }
+    },
+    {
+      "id": "wildlife_corridors",
+      "name": "Wildlife Corridors",
+      "tier": 2,
+      "costCrystals": 20,
+      "value": 18,
+      "rewards": {
+        "artifacts": 1
+      }
+    },
+    {
+      "id": "gaia_pulse",
+      "name": "Gaia Pulse",
+      "tier": 3,
+      "costCrystals": 32,
+      "value": 35,
+      "rewards": {
+        "artifacts": 1,
+        "spells": 1,
+        "gameCards": 2
+      }
+    }
+  ]
+}

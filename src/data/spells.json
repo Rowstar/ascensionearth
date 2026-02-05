@@ -1,0 +1,104 @@
+{
+  "spells": [
+    {
+      "id": "empower_the_meek",
+      "name": "Empower the Meek",
+      "value": 15,
+      "effect": "empower_the_meek",
+      "onCast": "empower_the_meek",
+      "count": 2,
+      "description": "Double the power of each Common or Uncommon Game Card you played in this Challenge.",
+      "rulesText": "Double the power of each Common or Uncommon Game Card you played in this Challenge."
+    },
+    {
+      "id": "channel_group_energy",
+      "name": "Channel Group Energy",
+      "value": 15,
+      "effect": "channel_group_energy",
+      "onCast": "channel_group_energy",
+      "count": 2,
+      "description": "Gain +5 power for each of your committed Game Cards in this Challenge.",
+      "rulesText": "Gain +5 power for each of your committed Game Cards in this Challenge."
+    },
+    {
+      "id": "tribal_spirits",
+      "name": "Tribal Spirits",
+      "value": 15,
+      "effect": "tribal_spirits",
+      "onCast": "tribal_spirits",
+      "count": 2,
+      "description": "Add 2 random Game Cards to your face-up cards in this Challenge.",
+      "rulesText": "Add 2 random Game Cards to your face-up cards in this Challenge."
+    },
+    {
+      "id": "third_eye_awakening",
+      "name": "Third Eye Awakening",
+      "value": 15,
+      "effect": "third_eye_awakening",
+      "onCast": "third_eye_awakening",
+      "count": 2,
+      "description": "Gain +7 power and reveal one opponent's face-down committed card in this Challenge (if any).",
+      "rulesText": "Gain +7 power and reveal one opponent's face-down committed card in this Challenge (if any)."
+    },
+    {
+      "id": "resonant_amplifier",
+      "name": "Resonant Amplifier",
+      "value": 15,
+      "effect": "resonant_amplifier",
+      "onCast": "resonant_amplifier",
+      "count": 2,
+      "description": "The next Invocation cast this Challenge has its primary effect doubled.",
+      "rulesText": "The next Invocation cast this Challenge has its primary effect doubled. Does not target another Resonant Amplifier."
+    },
+    {
+      "id": "confluence_of_voices",
+      "name": "Confluence of Voices",
+      "value": 15,
+      "effect": "confluence_of_voices",
+      "onCast": "confluence_of_voices",
+      "count": 2,
+      "description": "At Challenge resolution, gain +5 Ascension Power for each Invocation cast this Challenge.",
+      "rulesText": "At Challenge resolution, gain +5 Ascension Power for each Invocation cast this Challenge."
+    },
+    {
+      "id": "wisdoms_harvest",
+      "name": "Wisdom's Harvest",
+      "value": 12,
+      "effect": "wisdoms_harvest",
+      "onCast": "wisdoms_harvest",
+      "count": 2,
+      "description": "Gain +2 Challenge TP for each Game Card remaining in your hand.",
+      "rulesText": "Gain +2 Challenge TP for each Game Card remaining in your hand (uncommitted cards reward wisdom)."
+    },
+    {
+      "id": "inner_reflection",
+      "name": "Inner Reflection",
+      "value": 14,
+      "effect": "inner_reflection",
+      "onCast": "inner_reflection",
+      "count": 2,
+      "description": "Gain +1 AP for every 3 Challenge TP you have accumulated.",
+      "rulesText": "Gain +1 AP for every 3 Challenge TP you have accumulated. Converts teaching progress into power."
+    },
+    {
+      "id": "scholars_focus",
+      "name": "Scholar's Focus",
+      "value": 10,
+      "effect": "scholars_focus",
+      "onCast": "scholars_focus",
+      "count": 2,
+      "description": "Your committed cards with AP 5 or less each grant +3 bonus TP.",
+      "rulesText": "Your committed cards with AP 5 or less each grant +3 bonus TP. Rewards playing humble cards."
+    },
+    {
+      "id": "threshold_surge",
+      "name": "Threshold Surge",
+      "value": 16,
+      "effect": "threshold_surge",
+      "onCast": "threshold_surge",
+      "count": 2,
+      "description": "Gain +8 AP if you have crossed at least one TP threshold this Challenge.",
+      "rulesText": "Gain +8 AP if you have crossed at least one TP threshold this Challenge. +12 AP if two or more thresholds."
+    }
+  ]
+}

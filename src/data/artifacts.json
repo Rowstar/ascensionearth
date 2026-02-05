@@ -1,0 +1,254 @@
+{
+  "artifacts": [
+    {
+      "id": "mystic_orb",
+      "name": "Mystic Orb",
+      "value": 10,
+      "effect": "mystic_orb",
+      "count": 1,
+      "description": "After commits conclude, 30% chance to cast Third Eye Awakening for free.",
+      "rulesText": "After commits conclude, 30% chance to cast Third Eye Awakening for free.",
+      "triggers": [
+        { "event": "challenge_after_commit", "handler": "mystic_orb", "oncePerChallenge": true }
+      ]
+    },
+    {
+      "id": "spell_staff",
+      "name": "Invocation Staff",
+      "value": 10,
+      "effect": "spell_staff",
+      "count": 1,
+      "description": "After commits conclude, 30% chance to cast a random invocation for free.",
+      "rulesText": "After commits conclude, 30% chance to cast a random invocation for free (fizzles if unusable).",
+      "triggers": [
+        { "event": "challenge_after_commit", "handler": "spell_staff", "oncePerChallenge": true }
+      ]
+    },
+    {
+      "id": "giant_crystal",
+      "name": "Giant Crystal",
+      "value": 10,
+      "effect": "giant_crystal",
+      "count": 1,
+      "description": "Permanent +5 power in every Challenge and +1 to all dice rolls.",
+      "rulesText": "Permanent +5 power in every Challenge and +1 to all dice rolls.",
+      "triggers": [
+        { "event": "challenge_totals", "handler": "giant_crystal" },
+        { "event": "dice_bonus", "handler": "giant_crystal" }
+      ]
+    },
+    {
+      "id": "lucky_beads",
+      "name": "Lucky Beads",
+      "value": 10,
+      "effect": "lucky_beads",
+      "count": 1,
+      "description": "+1 Game Card when meditating and +1 to all dice rolls.",
+      "rulesText": "+1 Game Card when meditating and +1 to all dice rolls.",
+      "triggers": [
+        { "event": "meditate", "handler": "lucky_beads" },
+        { "event": "dice_bonus", "handler": "lucky_beads" }
+      ]
+    },
+    {
+      "id": "stone_of_balance",
+      "name": "Stone of Balance",
+      "value": 10,
+      "effect": "stone_of_balance",
+      "count": 1,
+      "description": "At Challenge resolution, if you committed 2+ different card types, gain +5 AP.",
+      "rulesText": "At Challenge resolution, if you committed 2+ different card types (Human, Plant, Animal, Cosmic), gain +5 AP.",
+      "triggers": [
+        { "event": "challenge_totals", "handler": "stone_of_balance" }
+      ]
+    },
+    {
+      "id": "reincarnation_crystal",
+      "name": "Reincarnation Crystal",
+      "value": 10,
+      "effect": "reincarnation_crystal",
+      "count": 1,
+      "description": "When the Worldseed ritual removes your cards, gain a random replacement Game Card.",
+      "rulesText": "When the Worldseed ritual removes your Cosmic cards, gain a random replacement Game Card.",
+      "triggers": [
+        { "event": "challenge_after_commit", "handler": "reincarnation_crystal", "oncePerChallenge": true }
+      ]
+    },
+    {
+      "id": "sacred_plant_seed",
+      "name": "Sacred Plant Seed",
+      "value": 10,
+      "effect": "sacred_plant_seed",
+      "count": 1,
+      "description": "+5 power for every Plant Game Card you play in a Challenge.",
+      "rulesText": "+5 power for every Plant Game Card you play in a Challenge.",
+      "triggers": [
+        { "event": "challenge_totals", "handler": "sacred_plant_seed" }
+      ]
+    },
+    {
+      "id": "magnetic_crystal",
+      "name": "Magnetic Crystal",
+      "value": 10,
+      "effect": "magnetic_crystal",
+      "count": 1,
+      "description": "Gain 2 Crystals from Mountain Journey rewards.",
+      "rulesText": "Gain 2 Crystals from Mountain Journey rewards.",
+      "triggers": [
+        { "event": "reward_pool_applied", "handler": "magnetic_crystal" },
+        { "event": "challenge_resolve", "handler": "magnetic_crystal", "oncePerChallenge": true }
+      ]
+    },
+    {
+      "id": "spirit_totem",
+      "name": "Spirit Totem",
+      "value": 10,
+      "effect": "spirit_totem",
+      "count": 1,
+      "description": "At the start of each Challenge, summon 1 random Game Card as an extra face-up card (50% chance).",
+      "rulesText": "At the start of each Challenge, summon 1 random Game Card as an extra face-up card (50% chance).",
+      "triggers": [
+        { "event": "challenge_setup", "handler": "spirit_totem", "oncePerChallenge": true }
+      ]
+    },
+    {
+      "id": "extra_terrestrial_artifact",
+      "name": "Extra Terrestrial Artifact",
+      "value": 10,
+      "effect": "extra_terrestrial_artifact",
+      "count": 1,
+      "description": "Each time you gain Teachings, gain +1 extra Basic Teaching.",
+      "rulesText": "Each time you gain Teachings, gain +1 extra Basic Teaching.",
+      "triggers": [
+        { "event": "gain_teaching", "handler": "extra_terrestrial_artifact" }
+      ]
+    },
+    {
+      "id": "crystal_seeker_goggles",
+      "name": "Crystal Seeker Goggles",
+      "value": 10,
+      "effect": "crystal_seeker_goggles",
+      "count": 1,
+      "description": "Whenever you resolve a Cave Journey, gain +1 Crystal.",
+      "rulesText": "Whenever you resolve a Cave Journey, gain +1 Crystal.",
+      "triggers": [
+        { "event": "challenge_resolve", "handler": "crystal_seeker_goggles" },
+        { "event": "reward_pool_applied", "handler": "crystal_seeker_goggles" }
+      ]
+    },
+    {
+      "id": "mysterious_totem",
+      "name": "Mysterious Totem",
+      "value": 10,
+      "effect": "mysterious_totem",
+      "count": 1,
+      "description": "Set your lowest-power committed Game Card to 15 AP. If that card is an Animal, set it to 18 instead.",
+      "rulesText": "Set your lowest-power committed Game Card to 15 AP. If that card is an Animal, set it to 18 instead.",
+      "triggers": [
+        { "event": "challenge_totals", "handler": "mysterious_totem" }
+      ]
+    },
+    {
+      "id": "cosmic_robes",
+      "name": "Cosmic Robes",
+      "value": 10,
+      "effect": "cosmic_robes",
+      "count": 1,
+      "description": "If you play 1+ Human cards, 30% chance to cast Empower the Meek for free.",
+      "rulesText": "If you play 1+ Human Game Cards in a Challenge, 30% chance to cast Empower the Meek for free.",
+      "triggers": [
+        { "event": "challenge_after_commit", "handler": "cosmic_robes", "oncePerChallenge": true }
+      ]
+    },
+    {
+      "id": "verdant_seed_pod",
+      "name": "Verdant Seed Pod",
+      "value": 6,
+      "effect": "verdant_seed_pod",
+      "count": 1,
+      "description": "When you meditate, 40% chance to gain +1 Game Card. If the card is a Plant, also gain +1 Crystal.",
+      "rulesText": "When you meditate, 40% chance to gain +1 Game Card. If the card is a Plant, also gain +1 Crystal.",
+      "triggers": [
+        { "event": "meditate", "handler": "verdant_seed_pod" }
+      ]
+    },
+    {
+      "id": "celestial_compass",
+      "name": "Celestial Compass",
+      "value": 12,
+      "effect": "celestial_compass",
+      "count": 1,
+      "description": "At the start of each Challenge, 50% chance to add the top game deck card as an extra face-up card.",
+      "rulesText": "At the start of each Challenge, 50% chance to add the top game deck card as an extra face-up card.",
+      "triggers": [
+        { "event": "challenge_setup", "handler": "celestial_compass", "oncePerChallenge": true }
+      ]
+    },
+    {
+      "id": "ancestors_drum",
+      "name": "Ancestor's Drum",
+      "value": 12,
+      "effect": "ancestors_drum",
+      "count": 1,
+      "description": "When you cast an Invocation in a Challenge, gain +3 AP. Once per challenge.",
+      "rulesText": "When you cast an Invocation in a Challenge, gain +3 AP. Once per challenge.",
+      "triggers": [
+        { "event": "challenge_totals", "handler": "ancestors_drum", "oncePerChallenge": true }
+      ]
+    },
+    {
+      "id": "crown_of_stars",
+      "name": "Crown of Stars",
+      "value": 16,
+      "effect": "crown_of_stars",
+      "count": 1,
+      "description": "Permanent +2 to all dice rolls. When you reach a TP threshold in a challenge, gain +2 Crystals.",
+      "rulesText": "Permanent +2 to all dice rolls. When you reach a TP threshold in a challenge, gain +2 Crystals.",
+      "triggers": [
+        { "event": "dice_bonus", "handler": "crown_of_stars" }
+      ]
+    },
+    {
+      "id": "mentors_medallion",
+      "name": "Mentor's Medallion",
+      "value": 8,
+      "effect": "mentors_medallion",
+      "count": 1,
+      "description": "Each Game Card you commit grants +2 bonus Challenge TP.",
+      "rulesText": "Each Game Card you commit grants +2 bonus Challenge TP. Accelerates your path to teachings.",
+      "triggers": [
+        { "event": "card_committed", "handler": "mentors_medallion" }
+      ]
+    },
+    {
+      "id": "tome_of_enlightenment",
+      "name": "Tome of Enlightenment",
+      "value": 12,
+      "effect": "tome_of_enlightenment",
+      "count": 1,
+      "description": "Your TP thresholds are reduced by 3 (Basic: 7, Rare: 22, Mythic: 47).",
+      "rulesText": "Your TP thresholds are reduced by 3 (Basic: 7, Rare: 22, Mythic: 47). Reach teachings faster.",
+      "triggers": []
+    },
+    {
+      "id": "scroll_of_wisdom",
+      "name": "Scroll of Accumulated Wisdom",
+      "value": 10,
+      "effect": "scroll_of_wisdom",
+      "count": 1,
+      "description": "Each TP threshold you cross grants +1 Crystal.",
+      "rulesText": "Each TP threshold you cross grants +1 Crystal. Teaching progress rewards material gain.",
+      "triggers": []
+    },
+    {
+      "id": "elders_signet",
+      "name": "Elder's Signet",
+      "value": 14,
+      "effect": "elders_signet",
+      "count": 1,
+      "description": "When you reach a TP threshold, gain +5 AP.",
+      "rulesText": "When you reach a TP threshold, gain +5 AP. Wisdom translates to power.",
+      "triggers": []
+    }
+  ]
+}

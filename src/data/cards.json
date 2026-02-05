@@ -1,0 +1,231 @@
+{
+  "cards": [
+    {
+      "id": "blue_lotus",
+      "name": "Blue Lotus",
+      "category": "game",
+      "basePower": 5,
+      "color": "Grey",
+      "tags": [
+        "Plant"
+      ],
+      "count": 2
+    },
+    {
+      "id": "magical_butterfly",
+      "name": "Magical Butterfly",
+      "category": "game",
+      "basePower": 6,
+      "color": "Grey",
+      "tags": [
+        "Animal"
+      ],
+      "count": 2
+    },
+    {
+      "id": "temple_priestess",
+      "name": "Temple Priestess",
+      "category": "game",
+      "basePower": 7,
+      "color": "Grey",
+      "tags": [
+        "Human"
+      ],
+      "count": 2
+    },
+    {
+      "id": "happy_holy_man",
+      "name": "Happy Holy Man",
+      "category": "game",
+      "basePower": 8,
+      "color": "Blue",
+      "tags": [
+        "Human"
+      ],
+      "count": 2
+    },
+    {
+      "id": "ancient_turtle",
+      "name": "Ancient Turtle",
+      "category": "game",
+      "basePower": 9,
+      "color": "Blue",
+      "tags": [
+        "Animal"
+      ],
+      "count": 2
+    },
+    {
+      "id": "ethereal_cactus",
+      "name": "Ethereal Cactus",
+      "category": "game",
+      "basePower": 10,
+      "color": "Blue",
+      "tags": [
+        "Plant"
+      ],
+      "count": 2
+    },
+    {
+      "id": "kundalini_snake",
+      "name": "Kundalini Snake",
+      "category": "game",
+      "basePower": 11,
+      "color": "Blue",
+      "tags": [
+        "Animal"
+      ],
+      "count": 2
+    },
+    {
+      "id": "mystical_mushrooms",
+      "name": "Mystical Mushrooms",
+      "category": "game",
+      "basePower": 12,
+      "color": "Gold",
+      "tags": [
+        "Plant"
+      ],
+      "count": 2
+    },
+    {
+      "id": "astral_cockatoo",
+      "name": "Astral Cockatoo",
+      "category": "game",
+      "basePower": 13,
+      "color": "Gold",
+      "tags": [
+        "Animal"
+      ],
+      "count": 2
+    },
+    {
+      "id": "druid",
+      "name": "Druid",
+      "category": "game",
+      "basePower": 14,
+      "color": "Gold",
+      "tags": [
+        "Human"
+      ],
+      "count": 2
+    },
+    {
+      "id": "enlightened_dolphin",
+      "name": "Enlightened Dolphin",
+      "category": "game",
+      "basePower": 15,
+      "color": "Gold",
+      "tags": [
+        "Animal"
+      ],
+      "count": 2
+    },
+    {
+      "id": "cosmic_toad",
+      "name": "Cosmic Toad",
+      "category": "game",
+      "basePower": 16,
+      "color": "Gold",
+      "tags": [
+        "Animal"
+      ],
+      "count": 2
+    },
+    {
+      "id": "shaman",
+      "name": "Shaman",
+      "category": "game",
+      "basePower": 17,
+      "color": "Gold",
+      "tags": [
+        "Human"
+      ],
+      "count": 2
+    },
+    {
+      "id": "master_monk",
+      "name": "Master Monk",
+      "category": "game",
+      "basePower": 18,
+      "color": "Gold",
+      "tags": [
+        "Human"
+      ],
+      "count": 2
+    },
+    {
+      "id": "tree_of_life",
+      "name": "Tree of Life",
+      "category": "game",
+      "basePower": 19,
+      "color": "Gold",
+      "tags": [
+        "Plant"
+      ],
+      "count": 2
+    },
+    {
+      "id": "verla",
+      "name": "Verla",
+      "category": "cosmic",
+      "basePower": 23,
+      "teachingPower": 23,
+      "color": "Gold",
+      "tags": [
+        "Cosmic"
+      ],
+      "count": 1
+    },
+    {
+      "id": "niam",
+      "name": "Niam",
+      "category": "cosmic",
+      "basePower": 23,
+      "teachingPower": 23,
+      "color": "Gold",
+      "tags": [
+        "Cosmic"
+      ],
+      "count": 1
+    },
+    {
+      "id": "shengar",
+      "name": "Shengar",
+      "category": "cosmic",
+      "basePower": 23,
+      "teachingPower": 23,
+      "color": "Gold",
+      "tags": [
+        "Cosmic"
+      ],
+      "count": 1
+    },
+    {
+      "id": "galactic_mushroom",
+      "name": "Galactic Mushroom",
+      "category": "cosmic",
+      "basePower": 25,
+      "teachingPower": 25,
+      "color": "Gold",
+      "tags": [
+        "Cosmic",
+        "Plant"
+      ],
+      "count": 1
+    },
+    {
+      "id": "galactic_dragon",
+      "name": "Galactic Dragon",
+      "category": "cosmic",
+      "basePower": 30,
+      "teachingPower": 30,
+      "color": "Gold",
+      "tags": [
+        "Cosmic",
+        "Animal"
+      ],
+      "count": 1
+    }
+  ]
+}

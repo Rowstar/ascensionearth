@@ -1,0 +1,437 @@
+{
+  "teachings": [
+    {
+      "id": "open_attention",
+      "name": "Open Attention",
+      "tier": "basic",
+      "effect": "basic_teaching_boost",
+      "value": 0,
+      "sellValue": 1,
+      "count": 2,
+      "description": "Immediate: +1 Crystal. Permanent: +2% meditation invocation chance. Next meditation: +30% one-time bonus.",
+      "rulesText": "Immediate: +1 Crystal. Permanent: +2% meditation invocation chance. Next meditation: +30% one-time bonus."
+    },
+    {
+      "id": "prepared_mind",
+      "name": "Prepared Mind",
+      "tier": "basic",
+      "effect": "basic_teaching_boost",
+      "value": 0,
+      "sellValue": 1,
+      "count": 2,
+      "description": "Immediate: +3 AP. Permanent: +3% meditation invocation chance. Next meditation: +60% one-time bonus.",
+      "rulesText": "Immediate: +3 AP. Permanent: +3% meditation invocation chance. Next meditation: +60% one-time bonus."
+    },
+    {
+      "id": "heightened_curiosity",
+      "name": "Heightened Curiosity",
+      "tier": "basic",
+      "effect": "basic_teaching_boost",
+      "value": 0,
+      "sellValue": 1,
+      "count": 2,
+      "description": "Immediate: +2 Challenge TP. Permanent: +5% meditation invocation chance. Next meditation: guaranteed Invocation.",
+      "rulesText": "Immediate: +2 Challenge TP. Permanent: +5% meditation invocation chance. Next meditation: guaranteed Invocation."
+    },
+    {
+      "id": "quiet_knowing",
+      "name": "Quiet Knowing",
+      "tier": "basic",
+      "effect": "basic_teaching_boost",
+      "value": 0,
+      "sellValue": 1,
+      "count": 2,
+      "description": "Immediate: +2 Crystals. Permanent: +3% meditation invocation chance. Next meditation: +45% one-time bonus.",
+      "rulesText": "Immediate: +2 Crystals. Permanent: +3% meditation invocation chance. Next meditation: +45% one-time bonus."
+    },
+    {
+      "id": "veil_of_uncertainty",
+      "name": "Veil of Uncertainty",
+      "tier": "basic",
+      "effect": "veil_of_uncertainty",
+      "value": 0,
+      "sellValue": 1,
+      "count": 2,
+      "description": "When you play a face-up Game Card, there is a 25% chance it becomes face-down instead.",
+      "rulesText": "When you play a face-up Game Card, there is a 25% chance it becomes face-down instead."
+    },
+    {
+      "id": "false_signal",
+      "name": "False Signal",
+      "tier": "basic",
+      "effect": "false_signal",
+      "value": 0,
+      "sellValue": 1,
+      "count": 2,
+      "description": "When a card becomes hidden, opponents receive a generic concealment cue.",
+      "rulesText": "When a card becomes hidden, opponents receive a generic concealment cue."
+    },
+    {
+      "id": "centered_resolve",
+      "name": "Centered Resolve",
+      "tier": "rare",
+      "effect": "centered_resolve",
+      "value": 1,
+      "count": 1,
+      "description": "When you Meditate, your next Challenge gains +1 to all dice rolls (initiative, effort, learning). Does not stack with itself.",
+      "rulesText": "When you Meditate, your next Challenge gains +1 to all dice rolls (initiative, effort, learning). Does not stack with itself.",
+      "triggers": [
+        { "event": "meditate", "handler": "centered_resolve" }
+      ]
+    },
+    {
+      "id": "human_affinity",
+      "name": "Human Affinity",
+      "tier": "rare",
+      "effect": "affinity_bonus",
+      "value": 2,
+      "count": 1,
+      "description": "Permanent +2 baseline Ascension Power. Additionally, Human cards in Challenges gain +1 AP each.",
+      "rulesText": "Permanent +2 baseline Ascension Power. Additionally, Human cards in Challenges gain +1 AP each.",
+      "triggers": [
+        { "event": "challenge_totals", "handler": "human_affinity" }
+      ]
+    },
+    {
+      "id": "plant_affinity",
+      "name": "Plant Affinity",
+      "tier": "rare",
+      "effect": "affinity_bonus",
+      "value": 2,
+      "count": 1,
+      "description": "Permanent +2 baseline Ascension Power. Additionally, when you meditate with 2+ Plant cards in hand, gain +1 Crystal.",
+      "rulesText": "Permanent +2 baseline Ascension Power. Additionally, when you meditate with 2+ Plant cards in hand, gain +1 Crystal.",
+      "triggers": [
+        { "event": "meditate", "handler": "plant_affinity" }
+      ]
+    },
+    {
+      "id": "animal_affinity",
+      "name": "Animal Affinity",
+      "tier": "rare",
+      "effect": "affinity_bonus",
+      "value": 2,
+      "count": 1,
+      "description": "Permanent +2 baseline Ascension Power. Additionally, +1 to all dice rolls if you committed an Animal card.",
+      "rulesText": "Permanent +2 baseline Ascension Power. Additionally, +1 to all dice rolls if you committed an Animal card.",
+      "triggers": [
+        { "event": "dice_bonus", "handler": "animal_affinity" }
+      ]
+    },
+    {
+      "id": "cosmic_affinity",
+      "name": "Cosmic Affinity",
+      "tier": "rare",
+      "effect": "cosmic_affinity",
+      "value": 3,
+      "count": 1,
+      "description": "When you play a Cosmic card in a Challenge, gain +3 AP and +1 Crystal. Once per challenge.",
+      "rulesText": "When you play a Cosmic card in a Challenge, gain +3 AP and +1 Crystal. Once per challenge.",
+      "triggers": [
+        { "event": "challenge_after_commit", "handler": "cosmic_affinity", "oncePerChallenge": true }
+      ]
+    },
+    {
+      "id": "earned_acknowledgement",
+      "name": "Earned Acknowledgement",
+      "tier": "rare",
+      "effect": "earned_acknowledgement",
+      "value": 15,
+      "count": 1,
+      "description": "When you purchase an Earth Advancement, gain +15 Crystals.",
+      "rulesText": "When you purchase an Earth Advancement, gain +15 Crystals.",
+      "triggers": [
+        { "event": "earth_advancement_purchase", "handler": "earned_acknowledgement" }
+      ]
+    },
+    {
+      "id": "favourable_exchange",
+      "name": "Favourable Exchange",
+      "tier": "rare",
+      "effect": "favourable_exchange",
+      "value": 5,
+      "count": 1,
+      "description": "Once per round, the first card sold grants +5 Crystals.",
+      "rulesText": "Once per round, the first card sold grants +5 Crystals.",
+      "triggers": [
+        { "event": "sell_item", "handler": "favourable_exchange", "oncePerTurn": true }
+      ]
+    },
+    {
+      "id": "pilgrims_insight",
+      "name": "Pilgrim's Insight",
+      "tier": "rare",
+      "effect": "pilgrims_insight",
+      "value": 0,
+      "count": 1,
+      "description": "If you complete a Mountain Journey followed immediately by a Cave Journey, gain 1 bonus Teaching (tier uses the standard Teaching roll).",
+      "rulesText": "If you complete a Mountain Journey followed immediately by a Cave Journey, gain 1 bonus Teaching (tier uses the standard Teaching roll).",
+      "triggers": [
+        { "event": "reward_pool_applied", "handler": "pilgrims_insight" }
+      ]
+    },
+    {
+      "id": "triune_expression",
+      "name": "Triune Expression",
+      "tier": "rare",
+      "effect": "triune_expression",
+      "value": 10,
+      "count": 1,
+      "description": "In a Challenge, if you commit 3 different game card types, gain +10 Ascension Power for that Challenge.",
+      "rulesText": "In a Challenge, if you commit 3 different game card types, gain +10 Ascension Power for that Challenge.",
+      "triggers": [
+        { "event": "challenge_after_commit", "handler": "triune_expression", "oncePerChallenge": true }
+      ]
+    },
+    {
+      "id": "emergent_convergence",
+      "name": "Emergent Convergence",
+      "tier": "rare",
+      "effect": "emergent_convergence",
+      "value": 0,
+      "count": 1,
+      "description": "In a Challenge, if you commit 3 different game card types, generate 1 random Game Card and add it immediately to the Challenge. The card cannot trigger on-play effects or generate additional cards.",
+      "rulesText": "In a Challenge, if you commit 3 different game card types, generate 1 random Game Card and add it immediately to the Challenge. The card cannot trigger on-play effects or generate additional cards.",
+      "triggers": [
+        { "event": "challenge_after_commit", "handler": "emergent_convergence", "oncePerChallenge": true }
+      ]
+    },
+    {
+      "id": "total_commitment",
+      "name": "Total Commitment",
+      "tier": "rare",
+      "effect": "total_commitment",
+      "value": 0,
+      "count": 1,
+      "description": "If you fill all Challenge slots (3 game cards and both Invocation slots), gain 1 Teaching. Once per round.",
+      "rulesText": "If you fill all Challenge slots (3 game cards and both Invocation slots), gain 1 Teaching. Once per round.",
+      "triggers": [
+        { "event": "challenge_after_commit", "handler": "total_commitment", "oncePerTurn": true }
+      ]
+    },
+    {
+      "id": "ritual_continuance",
+      "name": "Ritual Continuance",
+      "tier": "rare",
+      "effect": "ritual_continuance",
+      "value": 0,
+      "count": 1,
+      "description": "After you cast 2 Invocations in the same Challenge, generate 1 random Invocation (once per Challenge).",
+      "rulesText": "After you cast 2 Invocations in the same Challenge, generate 1 random Invocation (once per Challenge)."
+    },
+    {
+      "id": "transmutation_of_focus",
+      "name": "Transmutation of Focus",
+      "tier": "rare",
+      "effect": "transmutation_of_focus",
+      "value": 0,
+      "count": 1,
+      "description": "Outside of Challenges, sell exactly 2 Game Cards to generate 1 random Invocation (once per round).",
+      "rulesText": "Outside of Challenges, sell exactly 2 Game Cards to generate 1 random Invocation (once per round)."
+    },
+    {
+      "id": "doctrine_of_abundance",
+      "name": "Doctrine of Abundance",
+      "tier": "rare",
+      "effect": "doctrine_of_abundance",
+      "value": 0,
+      "count": 1,
+      "description": "Each round, you may buy up to 2 Game Cards and up to 2 Invocations in the shop.",
+      "rulesText": "Each round, you may buy up to 2 Game Cards and up to 2 Invocations in the shop."
+    },
+    {
+      "id": "rooted_patience",
+      "name": "Rooted Patience",
+      "tier": "rare",
+      "effect": "rooted_patience",
+      "value": 0,
+      "count": 1,
+      "description": "If you meditate on two consecutive turns, gain +1 Teaching on the second meditation. Once per game.",
+      "rulesText": "If you meditate on two consecutive turns, gain +1 Teaching on the second meditation. Once per game.",
+      "triggers": [
+        { "event": "meditate", "handler": "rooted_patience" }
+      ]
+    },
+    {
+      "id": "symbiotic_harmony",
+      "name": "Symbiotic Harmony",
+      "tier": "rare",
+      "effect": "symbiotic_harmony",
+      "value": 0,
+      "count": 1,
+      "description": "In a Challenge, if you play exactly 1 Plant and 1 Animal card together, both gain +4 AP.",
+      "rulesText": "In a Challenge, if you play exactly 1 Plant and 1 Animal card together, both gain +4 AP.",
+      "triggers": [
+        { "event": "challenge_totals", "handler": "symbiotic_harmony" }
+      ]
+    },
+    {
+      "id": "ledger_of_the_unseen",
+      "name": "Ledger of the Unseen",
+      "tier": "mythic",
+      "effect": "ledger_of_the_unseen",
+      "value": 0,
+      "unique": true,
+      "count": 1,
+      "description": "At the end of each Challenge, gain +10 Ascension Power for each of your cards that stayed hidden the entire Challenge.",
+      "rulesText": "At the end of each Challenge, gain +10 Ascension Power for each of your cards that stayed hidden the entire Challenge.",
+      "triggers": [
+        { "event": "challenge_totals", "handler": "ledger_of_the_unseen" }
+      ]
+    },
+    {
+      "id": "worldseed_awakening",
+      "name": "Worldseed Awakening",
+      "tier": "mythic",
+      "effect": "worldseed_awakening",
+      "value": 50,
+      "unique": true,
+      "count": 1,
+      "description": "Ritual: In a Challenge, commit exactly 3 Cosmic game cards. Those cards are removed from the game and the rite ends for you. Activation begins next round. Effect: When you Meditate, gain +50 Ascension Power once per round.",
+      "rulesText": "Ritual: In a Challenge, commit exactly 3 Cosmic game cards. Those cards are removed from the game and the rite ends for you. Activation begins next round. Effect: When you Meditate, gain +50 Ascension Power once per round.",
+      "triggers": [
+        { "event": "challenge_after_commit", "handler": "worldseed_awakening", "oncePerChallenge": true },
+        { "event": "meditate", "handler": "worldseed_awakening" }
+      ]
+    },
+    {
+      "id": "convergence_of_paths",
+      "name": "Convergence of Paths",
+      "tier": "mythic",
+      "effect": "convergence_of_paths",
+      "value": 0,
+      "unique": true,
+      "count": 1,
+      "description": "Each Earth Advancement you purchase costs 2 fewer Crystals (minimum 1). At game end, gain +3 AP per distinct Earth Advancement you own.",
+      "rulesText": "Each Earth Advancement you purchase costs 2 fewer Crystals (minimum 1). At game end, gain +3 AP per distinct Earth Advancement you own.",
+      "triggers": [
+        { "event": "earth_advancement_purchase", "handler": "convergence_of_paths" }
+      ]
+    },
+    {
+      "id": "awakened_instinct",
+      "name": "Awakened Instinct",
+      "tier": "mythic",
+      "effect": "awakened_instinct",
+      "value": 0,
+      "unique": true,
+      "count": 1,
+      "description": "Your first card each Challenge is always played face-down. At resolution, each hidden card that stayed hidden gains +5 AP.",
+      "rulesText": "Your first card each Challenge is always played face-down. At resolution, each hidden card that stayed hidden gains +5 AP.",
+      "triggers": [
+        { "event": "challenge_totals", "handler": "awakened_instinct" }
+      ]
+    },
+    {
+      "id": "lantern_of_the_unseen",
+      "name": "Lantern of the Unseen",
+      "tier": "rare",
+      "effect": "lantern_of_the_unseen",
+      "value": 0,
+      "unique": true,
+      "count": 1,
+      "description": "After each commit, reveal 1 random hidden card to you only. If no hidden cards exist, gain +1 Challenge TP.",
+      "rulesText": "After each commit, reveal 1 random hidden card to you only. If no hidden cards exist, gain +1 Challenge TP.",
+      "triggers": [
+        { "event": "challenge_after_commit", "handler": "lantern_of_the_unseen", "oncePerChallenge": true }
+      ]
+    },
+    {
+      "id": "echoes_in_the_stone",
+      "name": "Echoes in the Stone",
+      "tier": "mythic",
+      "effect": "echoes_in_the_stone",
+      "value": 0,
+      "unique": true,
+      "count": 1,
+      "description": "The first Invocation each Challenge grants +3 AP and +1 Challenge TP. The second Invocation grants an additional +1 TP.",
+      "rulesText": "The first Invocation each Challenge grants +3 AP and +1 Challenge TP. The second Invocation grants an additional +1 TP."
+    },
+    {
+      "id": "breath_of_the_summit",
+      "name": "Breath of the Summit",
+      "tier": "rare",
+      "effect": "breath_of_the_summit",
+      "value": 0,
+      "unique": true,
+      "count": 1,
+      "description": "When you reach any reward threshold in a Challenge, gain +1 Challenge TP. If you reach 2+ thresholds in the same Challenge, also gain +1 Crystal.",
+      "rulesText": "When you reach any reward threshold in a Challenge, gain +1 Challenge TP. If you reach 2+ thresholds in the same Challenge, also gain +1 Crystal."
+    },
+    {
+      "id": "crown_of_endurance",
+      "name": "Crown of Endurance",
+      "tier": "mythic",
+      "effect": "crown_of_endurance",
+      "value": 0,
+      "unique": true,
+      "count": 1,
+      "description": "Your first card played each Challenge gains +3 AP. If that card is Common or Uncommon, it gains +5 AP instead. If face-down, +2 more AP.",
+      "rulesText": "Your first card played each Challenge gains +3 AP. If that card is Common or Uncommon, it gains +5 AP instead. If face-down, +2 more AP.",
+      "triggers": [
+        { "event": "challenge_totals", "handler": "crown_of_endurance", "oncePerChallenge": true }
+      ]
+    },
+    {
+      "id": "disciplined_study",
+      "name": "Disciplined Study",
+      "tier": "basic",
+      "effect": "basic_teaching_boost",
+      "value": 0,
+      "sellValue": 1,
+      "count": 2,
+      "description": "Immediate: +3 Challenge TP. Permanent: +2% meditation invocation chance. Next meditation: +35% one-time bonus.",
+      "rulesText": "Immediate: +3 Challenge TP. Permanent: +2% meditation invocation chance. Next meditation: +35% one-time bonus."
+    },
+    {
+      "id": "wisdom_of_low_cards",
+      "name": "Wisdom of Low Cards",
+      "tier": "rare",
+      "effect": "wisdom_of_low_cards",
+      "value": 0,
+      "count": 1,
+      "description": "Cards with AP 5 or less grant double TP value when committed.",
+      "rulesText": "Cards with AP 5 or less grant double TP value when committed. Humble cards bring greater wisdom.",
+      "triggers": [
+        { "event": "card_committed", "handler": "wisdom_of_low_cards" }
+      ]
+    },
+    {
+      "id": "teachers_insight",
+      "name": "Teacher's Insight",
+      "tier": "rare",
+      "effect": "teachers_insight",
+      "value": 0,
+      "count": 1,
+      "description": "When you gain a teaching during a Challenge, also gain +3 AP.",
+      "rulesText": "When you gain a teaching during a Challenge, also gain +3 AP. Learning empowers you.",
+      "triggers": [
+        { "event": "teaching_gained", "handler": "teachers_insight" }
+      ]
+    },
+    {
+      "id": "path_of_knowledge",
+      "name": "Path of Knowledge",
+      "tier": "mythic",
+      "effect": "path_of_knowledge",
+      "value": 0,
+      "unique": true,
+      "count": 1,
+      "description": "Each TP threshold you cross grants +1 additional basic Teaching.",
+      "rulesText": "Each TP threshold you cross grants +1 additional basic Teaching. Wisdom begets more wisdom.",
+      "triggers": []
+    },
+    {
+      "id": "threshold_mastery",
+      "name": "Threshold Mastery",
+      "tier": "mythic",
+      "effect": "threshold_mastery",
+      "value": 0,
+      "unique": true,
+      "count": 1,
+      "description": "When you cross a TP threshold, gain +8 AP and +1 Crystal.",
+      "rulesText": "When you cross a TP threshold, gain +8 AP and +1 Crystal. Master the art of teaching progress.",
+      "triggers": []
+    }
+  ]
+}

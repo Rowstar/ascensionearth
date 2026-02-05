@@ -1,0 +1,103 @@
+@import url("https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Source+Serif+4:wght@400;600&display=swap");
+
+:root {
+  --bg-deep: #11141a;
+  --bg-mid: #1b2230;
+  --bg-glow: #2a3144;
+  --accent: #e6c15a;
+  --accent-2: #6fd6c2;
+  --ink: #f5f1e6;
+  --ink-soft: #c7c2b4;
+  --shadow: rgba(0, 0, 0, 0.4);
+  --safe-top: 64px;
+  --safe-bottom: 180px;
+  --safe-right: 18px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at top, var(--bg-glow), var(--bg-mid) 45%, var(--bg-deep) 100%);
+  font-family: "Source Serif 4", Georgia, serif;
+  color: var(--ink);
+  overflow: hidden;
+}
+
+#game-canvas {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+}
+
+.matchLog {
+  position: fixed;
+  right: 18px;
+  bottom: calc(var(--safe-bottom, 180px) + 12px);
+  width: min(460px, 30vw);
+  z-index: 45;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.matchLogBody {
+  max-height: 260px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 12px;
+  white-space: normal;
+}
+
+.matchLogBody * {
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
+.logEntry,
+.logText {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+.logEntry {
+  padding: 6px 0;
+}
+
+.logText {
+  display: inline;
+}
+
+.challengeLog {
+  overflow-y: auto;
+  overflow-x: hidden;
+  white-space: normal;
+}
+
+.challengeLog * {
+  white-space: normal !important;
+  overflow-wrap: anywhere !important;
+  word-break: break-word !important;
+}
+
+.challengeLog .logEntry,
+.challengeLog .logText {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.3;
+}
+
+.challengeLog .logEntry {
+  display: block;
+  padding: 6px 0;
+}
