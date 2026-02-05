@@ -59,7 +59,7 @@ import {
 } from "./ai";
 import {
   applyTrophyToPlayer,
-  buildMostTeachingsReview,
+  buildProgressReview,
   chooseAiTrophyOption,
   isProgressReviewRound,
   shouldAnnounceUpcomingReview
@@ -331,7 +331,9 @@ export class GameStore {
     );
 
     if (isProgressReviewRound(state.turn)) {
-      const review = buildMostTeachingsReview(state, this.rng);
+      const built = buildProgressReview(state, this.rng);
+      state.trophyCooldowns = built.updatedCooldowns;
+      const review = built.review;
       state.ui.progressReview = review;
       state.log.push(`Progress Review Round ${state.turn}: ${review.categoryName}.`);
       if (!review.winnerPlayerId) {
@@ -342,7 +344,7 @@ export class GameStore {
 
       const winner = state.players.find((player) => player.id === review.winnerPlayerId);
       if (winner?.isAI) {
-        const aiChoice = chooseAiTrophyOption(review);
+        const aiChoice = chooseAiTrophyOption(review, state, winner);
         if (aiChoice) {
           const reward = applyTrophyToPlayer(winner, aiChoice);
           review.selectedTrophyId = aiChoice.id;

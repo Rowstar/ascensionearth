@@ -81,6 +81,8 @@ export interface TrophyChoice {
   shortDescription: string;
   rewardAp: number;
   passiveBuff?: TrophyPassiveBuff;
+  currentLeaderPlayerId?: string;
+  winnerExplanation?: string;
 }
 
 export interface ProgressReviewBaseline {

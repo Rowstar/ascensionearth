@@ -4971,7 +4971,7 @@ function drawProgressReviewModal(
   const cardY = y + 208;
   const cardGap = 12;
   const cardW = Math.floor((panelW - 40 - cardGap * 2) / 3);
-  const cardH = 230;
+  const cardH = 248;
   review.trophyOptions.forEach((option, idx) => {
     const cardX = x + 20 + idx * (cardW + cardGap);
     const selected = review.selectedTrophyId === option.id;
@@ -5000,11 +5000,18 @@ function drawProgressReviewModal(
     ctx.fillStyle = "#9cf7c4";
     ctx.font = "600 12px 'Cinzel', serif";
     ctx.fillText(`Reward: +${option.rewardAp} AP`, cardX + 10, cardY + 158);
+    if (option.winnerExplanation) {
+      ctx.fillStyle = "rgba(245,241,230,0.8)";
+      ctx.font = "11px 'Source Serif 4', serif";
+      wrapText(ctx, `Why: ${option.winnerExplanation}`, cardW - 18).slice(0, 2).forEach((line, lineIndex) => {
+        ctx.fillText(line, cardX + 10, cardY + 175 + lineIndex * 13);
+      });
+    }
     if (option.passiveBuff) {
       ctx.fillStyle = "rgba(210,235,255,0.9)";
       ctx.font = "11px 'Source Serif 4', serif";
-      wrapText(ctx, `Passive: ${option.passiveBuff.description}`, cardW - 18).slice(0, 3).forEach((line, lineIndex) => {
-        ctx.fillText(line, cardX + 10, cardY + 180 + lineIndex * 14);
+      wrapText(ctx, `Passive: ${option.passiveBuff.description}`, cardW - 18).slice(0, 2).forEach((line, lineIndex) => {
+        ctx.fillText(line, cardX + 10, cardY + 203 + lineIndex * 13);
       });
     }
 
