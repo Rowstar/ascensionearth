@@ -1,4 +1,13 @@
-import { GameState, PlayerState, ProgressReviewBaseline, ProgressReviewState, TrophyChoice, TrophyPassiveBuff } from "./types";
+import {
+  EndgameEvaluationState,
+  EvaluationCategoryResult,
+  GameState,
+  PlayerState,
+  ProgressReviewBaseline,
+  ProgressReviewState,
+  TrophyChoice,
+  TrophyPassiveBuff
+} from "./types";
 import { Rng } from "./rng";
 import { dataStore } from "./state";
 
@@ -375,3 +384,138 @@ export function applyTrophyToPlayer(player: PlayerState, choice: TrophyChoice): 
   return { grantedAp, passiveText };
 }
 
+type EvaluationCategorySpec = {
+  id: EvaluationCategoryResult["id"];
+  title: string;
+  metricLabel: string;
+  metric: (state: GameState, player: PlayerState) => number;
+  rewardAp: number;
+  passiveBuff?: TrophyPassiveBuff;
+};
+
+const EVALUATION_CATEGORIES: EvaluationCategorySpec[] = [
+  {
+    id: "WISDOM",
+    title: "Wisdom Reward",
+    metricLabel: "Teachings and Arcane Study",
+    metric: (_state, player) => totalTeachings(player) * 2 + (player.spellsCast ?? 0),
+    rewardAp: 18,
+    passiveBuff: { kind: "REVIEW_AP_BONUS", amount: 1, description: "+1 AP on future trophy claims." }
+  },
+  {
+    id: "BALANCE",
+    title: "Balance Reward",
+    metricLabel: "Challenge Win Rate",
+    metric: (_state, player) => {
+      const entered = Math.max(1, player.runChallengesEntered ?? 0);
+      return (player.runChallengesWon ?? 0) / entered;
+    },
+    rewardAp: 16,
+    passiveBuff: { kind: "BASELINE_FORGIVENESS", amount: 1, description: "Baseline forgiveness +1." }
+  },
+  {
+    id: "DISCIPLINE",
+    title: "Discipline Reward",
+    metricLabel: "Efficiency and Earth Progress",
+    metric: (_state, player) => (totalEarthAdvancements(player) * 4) - ((player.runCrystalsSpent ?? 0) / 5),
+    rewardAp: 20,
+    passiveBuff: { kind: "CRYSTAL_DRIP", amount: 1, everyRounds: 4, description: "+1 Crystal every 4 rounds." }
+  }
+];
+
+function resolveEvaluationWinner(
+  state: GameState,
+  category: EvaluationCategorySpec
+): { winner?: PlayerState; score: number } {
+  let winner: PlayerState | undefined;
+  let winnerScore = -Infinity;
+  state.players.forEach((player) => {
+    const score = category.metric(state, player);
+    if (!winner) {
+      winner = player;
+      winnerScore = score;
+      return;
+    }
+    const cmp = compareScores(score, winnerScore);
+    if (cmp > 0) {
+      winner = player;
+      winnerScore = score;
+      return;
+    }
+    if (cmp === 0) {
+      if (player.crystals > winner.crystals) {
+        winner = player;
+        winnerScore = score;
+        return;
+      }
+      if (player.crystals === winner.crystals) {
+        const tieA = tieBreakScore(state, player.id, category.id);
+        const tieB = tieBreakScore(state, winner.id, category.id);
+        if (tieA > tieB) {
+          winner = player;
+          winnerScore = score;
+        }
+      }
+    }
+  });
+  return { winner, score: winnerScore };
+}
+
+function formatEvaluationScore(category: EvaluationCategorySpec, score: number): string {
+  if (!Number.isFinite(score)) return "0";
+  if (category.id === "BALANCE") {
+    return `${Math.round(score * 100)}%`;
+  }
+  return `${Math.round(score * 10) / 10}`;
+}
+
+export function buildEndgameEvaluation(state: GameState): EndgameEvaluationState {
+  const categories: EvaluationCategoryResult[] = EVALUATION_CATEGORIES.map((category) => {
+    const resolved = resolveEvaluationWinner(state, category);
+    const winnerName = resolved.winner?.name ?? "No winner";
+    const scoreText = formatEvaluationScore(category, resolved.score);
+    return {
+      id: category.id,
+      title: category.title,
+      metricLabel: category.metricLabel,
+      winnerPlayerId: resolved.winner?.id,
+      winnerExplanation: `${winnerName} led ${category.metricLabel} with ${scoreText}.`,
+      rewardAp: category.rewardAp,
+      passiveBuffText: category.passiveBuff?.description
+    };
+  });
+  return {
+    round: state.turn,
+    categories,
+    totalApGranted: 0
+  };
+}
+
+export function applyEndgameEvaluationRewards(state: GameState, evaluation: EndgameEvaluationState): EndgameEvaluationState {
+  let total = 0;
+  const updatedCategories = evaluation.categories.map((category) => {
+    const winner = state.players.find((player) => player.id === category.winnerPlayerId);
+    if (!winner) {
+      return category;
+    }
+    const spec = EVALUATION_CATEGORIES.find((entry) => entry.id === category.id);
+    const reward = applyTrophyToPlayer(winner, {
+      id: `evaluation-${category.id.toLowerCase()}`,
+      name: category.title,
+      shortDescription: category.metricLabel,
+      rewardAp: category.rewardAp,
+      passiveBuff: spec?.passiveBuff
+    });
+    total += reward.grantedAp;
+    return {
+      ...category,
+      rewardAp: reward.grantedAp,
+      passiveBuffText: reward.passiveText
+    };
+  });
+  return {
+    ...evaluation,
+    categories: updatedCategories,
+    totalApGranted: total
+  };
+}

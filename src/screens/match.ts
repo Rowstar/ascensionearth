@@ -1141,6 +1141,12 @@ export function renderMatch(
     return;
   }
 
+  if (state.ui.endgameEvaluation) {
+    drawEndgameEvaluationModal(ctx, state, regions, dispatch, hoveredId);
+    hoverTip = null;
+    return;
+  }
+
   if (state.ui.pendingSell) {
     drawSellConfirmModal(ctx, state, regions, dispatch, hoveredId);
     hoverTip = null;
@@ -4532,7 +4538,7 @@ function drawRulesOverlay(
     "Turn Phases: Roll Reward Pools, Action Phase, Challenge Phase.",
     "Actions: Meditate draws 2 Game Cards. Journeys roll for Teaching/Invocation rewards; Meditate claims pending rewards.",
     "Mountain/Cave Journey: solo claims rewards immediately; if contested, resolve Challenge.",
-    "Earth Advancement spends Crystals to gain Ascension Power and rewards.",
+    "Earth Advancement spends Crystals + resource combinations to gain AP-focused progress and tiny passives.",
     "Challenge: Commit up to 3 items total (Game Cards and/or Invocations). Only your FIRST committed Game Card is face-down; the rest are face-up.",
     "After Reveal and Resolve, all played game cards are discarded (invocations are always discarded).",
     "Guardian Challenge: Total group AP unlocks rewards; unlocked rewards are drafted in contribution order."
@@ -5080,6 +5086,81 @@ function drawProgressReviewModal(
       hoveredId === "review-continue"
     );
   }
+}
+
+function drawEndgameEvaluationModal(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  regions: HitRegion[],
+  dispatch: (action: GameAction) => void,
+  hoveredId?: string
+): void {
+  const evaluation = state.ui.endgameEvaluation;
+  if (!evaluation) return;
+
+  const { width, height } = ctx.canvas;
+  ctx.save();
+  ctx.globalAlpha = 0.75;
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, width, height);
+  ctx.restore();
+
+  const panelW = Math.min(920, width - 32);
+  const panelH = Math.min(640, height - 32);
+  const x = Math.floor((width - panelW) / 2);
+  const y = Math.floor((height - panelH) / 2);
+  drawPanel(ctx, x, y, panelW, panelH, "rgba(8,11,18,0.97)", "#6a7ea1");
+
+  ctx.fillStyle = "#f5f1e6";
+  ctx.font = "700 22px 'Cinzel', serif";
+  ctx.textAlign = "left";
+  ctx.fillText(`Endgame Evaluation - Round ${evaluation.round}`, x + 20, y + 36);
+
+  ctx.fillStyle = "rgba(245,241,230,0.9)";
+  ctx.font = "12px 'Source Serif 4', serif";
+  ctx.fillText("Themed AP rewards are granted based on run performance metrics.", x + 20, y + 58);
+
+  const rowStartY = y + 84;
+  const rowH = 144;
+  evaluation.categories.forEach((category, index) => {
+    const rowY = rowStartY + index * (rowH + 10);
+    drawPanel(ctx, x + 20, rowY, panelW - 40, rowH, "rgba(20,27,40,0.92)", "#4f607d");
+
+    const winnerName = category.winnerPlayerId
+      ? state.players.find((player) => player.id === category.winnerPlayerId)?.name ?? category.winnerPlayerId
+      : "No winner";
+    ctx.fillStyle = "#d8e7ff";
+    ctx.font = "600 15px 'Cinzel', serif";
+    ctx.fillText(category.title, x + 34, rowY + 24);
+    ctx.fillStyle = "rgba(245,241,230,0.84)";
+    ctx.font = "12px 'Source Serif 4', serif";
+    ctx.fillText(`Metric: ${category.metricLabel}`, x + 34, rowY + 44);
+    wrapText(ctx, category.winnerExplanation, panelW - 84).slice(0, 2).forEach((line, lineIndex) => {
+      ctx.fillText(line, x + 34, rowY + 64 + lineIndex * 16);
+    });
+
+    ctx.fillStyle = "#9cf7c4";
+    ctx.font = "600 13px 'Cinzel', serif";
+    ctx.fillText(`Winner: ${winnerName}  |  Reward: +${category.rewardAp} AP`, x + 34, rowY + 104);
+    if (category.passiveBuffText) {
+      ctx.fillStyle = "rgba(213,236,255,0.88)";
+      ctx.font = "11px 'Source Serif 4', serif";
+      ctx.fillText(`Passive: ${category.passiveBuffText}`, x + 34, rowY + 124);
+    }
+  });
+
+  const footerY = y + panelH - 74;
+  const groupImpact = evaluation.totalApGranted;
+  ctx.fillStyle = "#f5f1e6";
+  ctx.font = "600 13px 'Cinzel', serif";
+  ctx.fillText(`Total Ascension impact from evaluation: +${groupImpact} AP`, x + 22, footerY);
+  ctx.fillStyle = "rgba(245,241,230,0.84)";
+  ctx.font = "12px 'Source Serif 4', serif";
+  ctx.fillText(`Group Ascension now: ${Math.floor(state.earthAscensionPower)} / ${state.earthAscensionTarget}`, x + 22, footerY + 20);
+
+  drawButton(ctx, regions, "evaluation-finalize", x + panelW - 196, y + panelH - 56, 172, 36, "Finalize Cycle", () => {
+    dispatch({ type: "UI_CLOSE_EVALUATION" });
+  }, hoveredId === "evaluation-finalize");
 }
 
 function drawSellConfirmModal(

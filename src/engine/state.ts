@@ -189,6 +189,7 @@ export function createEmptyUiState(): UiState {
     challengeResultTab: "POWER",
     challengeResultPlayerId: undefined,
     progressReview: undefined,
+    endgameEvaluation: undefined,
     pendingThirdEyeSelection: undefined,
     tooltip: undefined,
     lastHoverId: undefined,
@@ -365,7 +366,7 @@ export function createNewGame(seed: string): GameState {
   const state: GameState = {
     seed: seed || "ascension-earth",
     turn: 1,
-    maxTurns: 16,
+    maxTurns: 10,
     earthAscensionPower: 0,
     earthAscensionTarget: 999,
     guardianKeystones: {

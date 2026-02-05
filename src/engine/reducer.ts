@@ -58,7 +58,9 @@ import {
   decideAiShopPurchase
 } from "./ai";
 import {
+  applyEndgameEvaluationRewards,
   applyTrophyToPlayer,
+  buildEndgameEvaluation,
   buildProgressReview,
   chooseAiTrophyOption,
   isProgressReviewRound,
@@ -136,7 +138,7 @@ export class GameStore {
     this.state = {
       seed: "ascension-earth",
       turn: 1,
-      maxTurns: 16,
+      maxTurns: 10,
       earthAscensionPower: 0,
       earthAscensionTarget: 999,
       settings: {
@@ -188,14 +190,10 @@ export class GameStore {
   private applyEarthAscension(state: GameState): GameState {
     const earthPower = state.players.reduce((sum, player) => sum + finalScore(player), 0);
     state.earthAscensionPower = earthPower;
-    if (state.phase !== "GAME_OVER" && earthPower >= state.earthAscensionTarget) {
-      state.phase = "GAME_OVER";
-      state.pendingChallenges = [];
-      state.challenge = undefined;
-      state.ui.shopOpen = false;
-      state.ui.pendingSell = undefined;
-      state.ui.challengeResult = undefined;
-      state.log.push("Earth Ascension reaches its target.");
+    if (earthPower >= state.earthAscensionTarget && state.phase !== "GAME_OVER" && state.phase !== "EVALUATION") {
+      if (state.log[state.log.length - 1] !== "Earth Ascension reaches its target.") {
+        state.log.push("Earth Ascension reaches its target.");
+      }
     }
     return state;
   }
@@ -368,13 +366,16 @@ export class GameStore {
       state.log.push(`Progress Review next round! (Round ${state.turn + 1})`);
     }
 
-    if (state.ui.debugEnabled && state.maxTurns > 0 && state.turn >= state.maxTurns) {
-      state.phase = "GAME_OVER";
+    if (state.maxTurns > 0 && state.turn >= state.maxTurns) {
+      const built = buildEndgameEvaluation(state);
+      const evaluated = applyEndgameEvaluationRewards(state, built);
+      state.ui.endgameEvaluation = evaluated;
+      state.phase = "EVALUATION";
       state.pendingChallenges = [];
       state.challenge = undefined;
       state.ui.shopOpen = false;
       state.ui.pendingSell = undefined;
-      state.log.push(`The ${state.maxTurns}-turn cycle completes. The game ends!`);
+      state.log.push(`Round ${state.maxTurns} complete. Endgame Evaluation begins.`);
       return state;
     }
 
@@ -443,6 +444,7 @@ export class GameStore {
       loaded.reviewHistory = loaded.reviewHistory ?? [];
       loaded.trophyCooldowns = loaded.trophyCooldowns ?? {};
       loaded.ui.progressReview = loaded.ui.progressReview ?? undefined;
+      loaded.ui.endgameEvaluation = loaded.ui.endgameEvaluation ?? undefined;
       loaded.players.forEach((player) => {
         player.reviewBaselineForgiveness = player.reviewBaselineForgiveness ?? 0;
         player.reviewApBonus = player.reviewApBonus ?? 0;
@@ -474,6 +476,15 @@ export class GameStore {
       next.ui.progressReview &&
       action.type !== "UI_SELECT_TROPHY" &&
       action.type !== "UI_CLOSE_PROGRESS_REVIEW" &&
+      action.type !== "UI_CLEAR_TURN_TOAST" &&
+      action.type !== "TOGGLE_MENU"
+    ) {
+      return next;
+    }
+
+    if (
+      next.ui.endgameEvaluation &&
+      action.type !== "UI_CLOSE_EVALUATION" &&
       action.type !== "UI_CLEAR_TURN_TOAST" &&
       action.type !== "TOGGLE_MENU"
     ) {
@@ -685,6 +696,15 @@ export class GameStore {
         return next;
       case "UI_SET_GAME_OVER_TAB":
         next.ui.gameOverTab = action.tab;
+        return next;
+      case "UI_CLOSE_EVALUATION":
+        next.ui.endgameEvaluation = undefined;
+        next.phase = "GAME_OVER";
+        next.pendingChallenges = [];
+        next.challenge = undefined;
+        next.ui.shopOpen = false;
+        next.ui.pendingSell = undefined;
+        next.log.push("Evaluation complete. Final standings locked.");
         return next;
       case "UI_SELECT_TROPHY": {
         const review = next.ui.progressReview;

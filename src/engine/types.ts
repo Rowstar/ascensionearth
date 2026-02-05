@@ -117,6 +117,22 @@ export interface ProgressReviewState {
   resolved: boolean;
 }
 
+export interface EvaluationCategoryResult {
+  id: "WISDOM" | "BALANCE" | "DISCIPLINE";
+  title: string;
+  metricLabel: string;
+  winnerPlayerId?: string;
+  winnerExplanation: string;
+  rewardAp: number;
+  passiveBuffText?: string;
+}
+
+export interface EndgameEvaluationState {
+  round: number;
+  categories: EvaluationCategoryResult[];
+  totalApGranted: number;
+}
+
 export type ArtifactEffect =
   | "mystic_orb"
   | "spell_staff"
@@ -246,6 +262,7 @@ export type Phase =
   | "ACTION_SELECT"
   | "ACTION_REVEAL"
   | "CHALLENGE"
+  | "EVALUATION"
   | "TURN_END"
   | "GAME_OVER";
 
@@ -488,6 +505,7 @@ export interface UiState {
   challengeResultTab?: "POWER" | "PLAYED" | "REWARDS";
   challengeResultPlayerId?: string;
   progressReview?: ProgressReviewState;
+  endgameEvaluation?: EndgameEvaluationState;
   pendingThirdEyeSelection?: {
     casterId: string;
     targets: Array<{ playerId: string; cardId: string }>;
@@ -679,6 +697,7 @@ export type GameAction =
   | { type: "UI_SET_CHALLENGE_RESULT_TAB"; tab: "POWER" | "PLAYED" | "REWARDS" }
   | { type: "UI_SET_CHALLENGE_RESULT_PLAYER"; playerId: string }
   | { type: "UI_SET_GAME_OVER_TAB"; tab: "SUMMARY" | "ACHIEVEMENTS" }
+  | { type: "UI_CLOSE_EVALUATION" }
   | { type: "UI_SELECT_TROPHY"; trophyId: string }
   | { type: "UI_CLOSE_PROGRESS_REVIEW" }
   | { type: "UI_RESOLVE_THIRD_EYE_TARGET"; targetPlayerId: string; targetCardId: string }
