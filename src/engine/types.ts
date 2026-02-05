@@ -54,13 +54,24 @@ export interface TeachingData {
   count?: number;
 }
 
+export type EarthCardRarity = "common" | "uncommon" | "rare" | "cosmic";
+
+export interface EarthAdvancementRequirements {
+  crystals: number;
+  artifacts?: number;
+  spells?: number;
+  invocations?: number;
+  cardsAny?: number;
+  cardsByRarity?: Partial<Record<EarthCardRarity, number>>;
+}
+
 export interface EarthAdvancementData {
   id: string;
   name: string;
   tier: 1 | 2 | 3;
-  costCrystals: number;
-  value: number;
-  rewards?: { gameCards?: number; spells?: number; artifacts?: number };
+  requirements: EarthAdvancementRequirements;
+  apReward: number;
+  passiveBuff?: TrophyPassiveBuff;
 }
 
 export type TrophyPassiveBuffKind =

@@ -4,6 +4,7 @@ import {
   ChallengeResult,
   ChallengeRewardDelta,
   ChallengeState,
+  EarthCardRarity,
   EarthAdvancementData,
   GameState,
   PendingChallenge,
@@ -772,18 +773,207 @@ export function totalCurrencyCrystals(player: PlayerState): number {
 }
 
 export function earthAdvancementTierMultiplier(tier: 1 | 2 | 3): number {
-  // Locked balance: Earth Advancements are the primary Ascension Power engine.
-  // Tier multipliers: 2 / 3 / 4
-  return tier === 1 ? 2 : tier === 2 ? 3 : 4;
+  return tier === 1 ? 1 : tier === 2 ? 1 : 1;
 }
 
 export function earthAdvancementAp(card: EarthAdvancementData): number {
-  return (card.value ?? 0) * earthAdvancementTierMultiplier(card.tier);
+  return Math.max(0, Math.floor((card.apReward ?? 0) * earthAdvancementTierMultiplier(card.tier)));
 }
 
 function spendCrystals(player: PlayerState, crystalsToSpend: number): void {
   player.crystals = Math.max(0, player.crystals - crystalsToSpend);
   player.runCrystalsSpent = (player.runCrystalsSpent ?? 0) + Math.max(0, crystalsToSpend);
+}
+
+function earthCardRarity(cardId: string): EarthCardRarity {
+  const card = dataStore.cardsById[cardId];
+  if (!card) return "common";
+  if (card.category === "cosmic" || card.tags.includes("Cosmic")) {
+    return "cosmic";
+  }
+  if (card.basePower >= 12) return "rare";
+  if (card.basePower >= 8) return "uncommon";
+  return "common";
+}
+
+function effectiveEarthCrystalCost(card: EarthAdvancementData, player: PlayerState): number {
+  const base = Math.max(0, card.requirements?.crystals ?? 0);
+  if (hasPassiveTeaching(player, "convergence_of_paths")) {
+    return Math.max(1, base - 2);
+  }
+  return base;
+}
+
+function requiredInvocations(card: EarthAdvancementData): number {
+  const req = card.requirements ?? { crystals: 0 };
+  return Math.max(0, req.spells ?? 0) + Math.max(0, req.invocations ?? 0);
+}
+
+function rarityRequirementTotal(card: EarthAdvancementData): number {
+  const byRarity = card.requirements?.cardsByRarity;
+  if (!byRarity) return 0;
+  return Object.values(byRarity).reduce((sum, value) => sum + Math.max(0, value ?? 0), 0);
+}
+
+export function earthAdvancementRequirementLines(card: EarthAdvancementData): string[] {
+  const req = card.requirements ?? { crystals: 0 };
+  const lines: string[] = [`Spend ${formatCrystals(req.crystals ?? 0)} Crystals`];
+  if ((req.artifacts ?? 0) > 0) {
+    lines.push(`Consume ${req.artifacts} Artifact${req.artifacts === 1 ? "" : "s"}`);
+  }
+  if ((req.cardsAny ?? 0) > 0) {
+    lines.push(`Consume ${req.cardsAny} Game Card${req.cardsAny === 1 ? "" : "s"}`);
+  }
+  if ((req.spells ?? 0) > 0) {
+    lines.push(`Consume ${req.spells} Spell${req.spells === 1 ? "" : "s"}`);
+  }
+  if ((req.invocations ?? 0) > 0) {
+    lines.push(`Consume ${req.invocations} Invocation${req.invocations === 1 ? "" : "s"}`);
+  }
+  const byRarity = req.cardsByRarity;
+  if (byRarity) {
+    const parts: string[] = [];
+    (["common", "uncommon", "rare", "cosmic"] as EarthCardRarity[]).forEach((rarity) => {
+      const count = byRarity[rarity] ?? 0;
+      if (count > 0) {
+        const label = rarity[0].toUpperCase() + rarity.slice(1);
+        parts.push(`${count} ${label}`);
+      }
+    });
+    if (parts.length > 0) {
+      lines.push(`Consume ${parts.join(" + ")} Card${parts.length > 1 ? "s" : ""}`);
+    }
+  }
+  return lines;
+}
+
+function missingEarthRequirements(card: EarthAdvancementData, player: PlayerState): string[] {
+  const req = card.requirements ?? { crystals: 0 };
+  const missing: string[] = [];
+  const crystalCost = effectiveEarthCrystalCost(card, player);
+  if (player.crystals < crystalCost) {
+    missing.push(`Need ${formatCrystals(crystalCost)} Crystals`);
+  }
+  const artifactsNeed = Math.max(0, req.artifacts ?? 0);
+  if (player.artifacts.length < artifactsNeed) {
+    missing.push(`Need ${artifactsNeed} Artifact${artifactsNeed === 1 ? "" : "s"}`);
+  }
+
+  const invocationNeed = requiredInvocations(card);
+  if (player.spells.length < invocationNeed) {
+    missing.push(`Need ${invocationNeed} Invocation${invocationNeed === 1 ? "" : "s"}`);
+  }
+
+  const byRarity = req.cardsByRarity ?? {};
+  const rarityCounts: Record<EarthCardRarity, number> = { common: 0, uncommon: 0, rare: 0, cosmic: 0 };
+  player.hand.forEach((cardId) => {
+    rarityCounts[earthCardRarity(cardId)] += 1;
+  });
+  (["common", "uncommon", "rare", "cosmic"] as EarthCardRarity[]).forEach((rarity) => {
+    const need = Math.max(0, byRarity[rarity] ?? 0);
+    if (need > 0 && rarityCounts[rarity] < need) {
+      const label = rarity[0].toUpperCase() + rarity.slice(1);
+      missing.push(`Need ${need} ${label} Card${need === 1 ? "" : "s"}`);
+    }
+  });
+
+  const cardsAnyNeed = Math.max(0, req.cardsAny ?? 0);
+  const reservedForRarity = rarityRequirementTotal(card);
+  const availableForAny = Math.max(0, player.hand.length - reservedForRarity);
+  if (availableForAny < cardsAnyNeed) {
+    missing.push(`Need ${cardsAnyNeed} extra Game Card${cardsAnyNeed === 1 ? "" : "s"}`);
+  }
+
+  return missing;
+}
+
+export function earthAdvancementMissingRequirements(card: EarthAdvancementData, player: PlayerState): string[] {
+  return missingEarthRequirements(card, player);
+}
+
+export function earthAdvancementCrystalCost(card: EarthAdvancementData, player: PlayerState): number {
+  return effectiveEarthCrystalCost(card, player);
+}
+
+function removeByIndices<T>(list: T[], indices: number[]): T[] {
+  const sorted = [...indices].sort((a, b) => b - a);
+  const removed: T[] = [];
+  sorted.forEach((index) => {
+    if (index >= 0 && index < list.length) {
+      const [item] = list.splice(index, 1);
+      if (item !== undefined) removed.push(item);
+    }
+  });
+  return removed;
+}
+
+function consumeArtifacts(player: PlayerState, count: number): string[] {
+  const indexed = player.artifacts
+    .map((id, index) => ({ id, index, value: artifactValue(id) }))
+    .sort((a, b) => a.value - b.value || a.index - b.index)
+    .slice(0, count);
+  return removeByIndices(player.artifacts, indexed.map((entry) => entry.index));
+}
+
+function consumeInvocations(state: GameState, player: PlayerState, count: number): string[] {
+  const indexed = player.spells
+    .map((id, index) => ({ id, index, value: spellValue(id) }))
+    .sort((a, b) => a.value - b.value || a.index - b.index)
+    .slice(0, count);
+  const removed = removeByIndices(player.spells, indexed.map((entry) => entry.index));
+  removed.forEach((spellId) => state.decks.discardSpells.push(spellId));
+  return removed;
+}
+
+function consumeCardsAny(state: GameState, player: PlayerState, count: number): string[] {
+  const indexed = player.hand
+    .map((id, index) => ({ id, index, value: cardValue(id) }))
+    .sort((a, b) => a.value - b.value || a.index - b.index)
+    .slice(0, count);
+  const removed = removeByIndices(player.hand, indexed.map((entry) => entry.index));
+  removed.forEach((cardId) => state.decks.discardGame.push(cardId));
+  return removed;
+}
+
+function consumeCardsByRarity(
+  state: GameState,
+  player: PlayerState,
+  cardNeeds: Partial<Record<EarthCardRarity, number>>
+): string[] {
+  const selections: number[] = [];
+  (["common", "uncommon", "rare", "cosmic"] as EarthCardRarity[]).forEach((rarity) => {
+    const need = Math.max(0, cardNeeds[rarity] ?? 0);
+    if (need <= 0) return;
+    const pool = player.hand
+      .map((id, index) => ({ id, index, rarity: earthCardRarity(id), value: cardValue(id) }))
+      .filter((entry) => entry.rarity === rarity && !selections.includes(entry.index))
+      .sort((a, b) => a.value - b.value || a.index - b.index)
+      .slice(0, need);
+    selections.push(...pool.map((entry) => entry.index));
+  });
+  const removed = removeByIndices(player.hand, selections);
+  removed.forEach((cardId) => state.decks.discardGame.push(cardId));
+  return removed;
+}
+
+function applyEarthPassiveBuff(player: PlayerState, card: EarthAdvancementData): string | undefined {
+  const buff = card.passiveBuff;
+  if (!buff) return undefined;
+  if (buff.kind === "BASELINE_FORGIVENESS") {
+    player.reviewBaselineForgiveness = (player.reviewBaselineForgiveness ?? 0) + Math.max(0, buff.amount);
+    return buff.description;
+  }
+  if (buff.kind === "REVIEW_AP_BONUS") {
+    player.reviewApBonus = (player.reviewApBonus ?? 0) + Math.max(0, buff.amount);
+    return buff.description;
+  }
+  if (buff.kind === "CRYSTAL_DRIP") {
+    const current = player.bonusCrystalEveryRounds;
+    const next = Math.max(2, buff.everyRounds ?? 3);
+    player.bonusCrystalEveryRounds = current ? Math.min(current, next) : next;
+    return buff.description;
+  }
+  return undefined;
 }
 
 export function sellHandCard(player: PlayerState, cardIndex: number, state: GameState): void {
@@ -881,7 +1071,7 @@ export function canBuyEarthAdvancement(state: GameState, player: PlayerState, ti
   const id = peekEarthCard(state, tier);
   const card = dataStore.earthAdvancements.find((c) => c.id === id);
   if (!card) return false;
-  return totalCurrencyCrystals(player) >= card.costCrystals;
+  return missingEarthRequirements(card, player).length === 0;
 }
 
 export function buyEarthAdvancement(state: GameState, player: PlayerState, tier: 1 | 2 | 3, rng: Rng): boolean {
@@ -892,20 +1082,25 @@ export function buyEarthAdvancement(state: GameState, player: PlayerState, tier:
   }
   const card = dataStore.earthAdvancements.find((c) => c.id === id);
   if (!card) return false;
-
-  // Convergence of Paths: reduce cost by 2 (min 1)
-  let effectiveCost = card.costCrystals;
-  if (hasPassiveTeaching(player, "convergence_of_paths")) {
-    effectiveCost = Math.max(1, effectiveCost - 2);
-  }
-
-  if (totalCurrencyCrystals(player) < effectiveCost) {
-    state.log.push(`${player.name} lacks the Crystals to complete an Earth Advancement (Tier ${tier} costs ${formatCrystals(effectiveCost)} Crystals).`);
+  const missing = missingEarthRequirements(card, player);
+  if (missing.length > 0) {
+    state.log.push(`${player.name} cannot complete ${card.name}: ${missing.join("; ")}.`);
     return false;
   }
 
-  // Spend crystals, take the card
-  spendCrystals(player, effectiveCost);
+  const req = card.requirements ?? { crystals: 0 };
+  const crystalCost = effectiveEarthCrystalCost(card, player);
+  const artifactCost = Math.max(0, req.artifacts ?? 0);
+  const invocationCost = requiredInvocations(card);
+  const rarityReq = req.cardsByRarity ?? {};
+  const cardsAnyCost = Math.max(0, req.cardsAny ?? 0);
+
+  spendCrystals(player, crystalCost);
+  const consumedArtifacts = artifactCost > 0 ? consumeArtifacts(player, artifactCost) : [];
+  const consumedInvocations = invocationCost > 0 ? consumeInvocations(state, player, invocationCost) : [];
+  const consumedRarityCards = rarityRequirementTotal(card) > 0 ? consumeCardsByRarity(state, player, rarityReq) : [];
+  const consumedAnyCards = cardsAnyCost > 0 ? consumeCardsAny(state, player, cardsAnyCost) : [];
+
   drawEarthCard(state, tier);
   if (card.tier === 1) {
     player.earthAdvancementsT1.push(card.id);
@@ -914,41 +1109,7 @@ export function buyEarthAdvancement(state: GameState, player: PlayerState, tier:
   } else {
     player.earthAdvancementsT3.push(card.id);
   }
-
-  // Reward: always at least its AP value (scoring handled in finalScore), plus optional card rewards
-  const rewards = card.rewards ?? {};
-  const drawCount = rewards.gameCards ?? 0;
-  const spellCount = rewards.spells ?? 0;
-  const artifactCount = rewards.artifacts ?? 0;
-  let cardsGranted = 0;
-  let spellsGranted = 0;
-  let artifactsGranted = 0;
-
-  for (let i = 0; i < drawCount; i += 1) {
-    const drawn = drawFromDeck(state.decks.game, state.decks.discardGame, rng);
-    if (drawn) {
-      player.hand.push(drawn);
-      cardsGranted += 1;
-    }
-  }
-  for (let i = 0; i < spellCount; i += 1) {
-    const drawn = drawFromDeck(state.decks.spells, state.decks.discardSpells, rng);
-    if (drawn && grantInvocation(state, player, drawn)) {
-      spellsGranted += 1;
-    }
-  }
-  for (let i = 0; i < artifactCount; i += 1) {
-    const drawn = drawFromDeck(state.decks.artifacts, [], rng);
-    if (drawn) {
-      player.artifacts.push(drawn);
-      artifactsGranted += 1;
-    }
-  }
-
-  const rewardBits: string[] = [];
-  if (cardsGranted) rewardBits.push(`${cardsGranted} Game Card${cardsGranted === 1 ? "" : "s"}`);
-  if (spellsGranted) rewardBits.push(`${spellsGranted} Invocation${spellsGranted === 1 ? "" : "s"}`);
-  if (artifactsGranted) rewardBits.push(`${artifactsGranted} Artifact${artifactsGranted === 1 ? "" : "s"}`);
+  const passiveText = applyEarthPassiveBuff(player, card);
 
   triggerEffects("earth_advancement_purchase", {
     state,
@@ -958,7 +1119,7 @@ export function buyEarthAdvancement(state: GameState, player: PlayerState, tier:
   });
 
   state.log.push(
-    `${player.name} completed Earth Advancement: ${card.name} (Tier ${tier}, ${earthAdvancementAp(card)} AP, cost ${formatCrystals(card.costCrystals)} Crystals)${rewardBits.length ? ` and gained ${rewardBits.join(", ")}.` : "."}`
+    `${player.name} completed Earth Advancement: ${card.name} (Tier ${tier}, +${earthAdvancementAp(card)} AP, cost ${formatCrystals(crystalCost)} Crystals, consumed ${consumedArtifacts.length} Artifact${consumedArtifacts.length === 1 ? "" : "s"}, ${consumedInvocations.length} Invocation${consumedInvocations.length === 1 ? "" : "s"}, ${consumedRarityCards.length + consumedAnyCards.length} Card${consumedRarityCards.length + consumedAnyCards.length === 1 ? "" : "s"}).${passiveText ? ` Passive: ${passiveText}` : ""}`
   );
 
   return true;

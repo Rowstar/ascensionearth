@@ -1,4 +1,4 @@
-import { ActionChoice, ChallengeState, GameAction, GameState, ProgressReviewState, TeachingData, TeachingTier } from "../engine/types";
+import { ActionChoice, ChallengeState, EarthAdvancementData, GameAction, GameState, ProgressReviewState, TeachingData, TeachingTier } from "../engine/types";
 import {
   CAVE_MYTHIC_THRESHOLD,
   CAVE_RARE_THRESHOLD,
@@ -10,6 +10,9 @@ import {
   MOUNTAIN_CRYSTAL_TIER_2,
   INVOCATION_SLOT_MAX,
   earthAdvancementAp,
+  earthAdvancementCrystalCost,
+  earthAdvancementMissingRequirements,
+  earthAdvancementRequirementLines,
   finalScore,
   finalScoreWithAchievements,
   formatCrystals,
@@ -306,11 +309,19 @@ function buildActionSummaryLines(state: GameState, human: GameState["players"][n
     if (!card) {
       return [`Tier ${tier}: no advancements remaining.`];
     }
-    const affordable = human.crystals >= card.costCrystals;
+    const effectiveCrystalCost = earthAdvancementCrystalCost(card, human);
+    const reqLines = earthAdvancementRequirementLines(card);
+    const missing = earthAdvancementMissingRequirements(card, human);
+    const crystalLine = reqLines[0]?.replace(
+      /Spend\s+\d+\s+Crystals/i,
+      `Spend ${formatCrystals(effectiveCrystalCost)} Crystals`
+    ) ?? `Spend ${formatCrystals(effectiveCrystalCost)} Crystals`;
     return [
       `Next: ${card.name} (Tier ${tier})`,
-      `Cost: ${formatCrystals(card.costCrystals)} Crystals (${affordable ? "Affordable" : "Not enough"})`,
-      `AP: ${earthAdvancementAp(card)}`
+      crystalLine,
+      ...reqLines.slice(1, 3),
+      `AP Reward: +${earthAdvancementAp(card)}`,
+      missing.length === 0 ? "Status: Requirements met." : `Missing: ${missing.join(" | ")}`
     ];
   }
   return [];
@@ -1334,13 +1345,10 @@ function drawTopBar(
 
 }
 
-function rewardSummary(rewards?: { gameCards?: number; spells?: number; artifacts?: number }): string {
-  if (!rewards) return "Rewards: none";
-  const bits: string[] = [];
-  if (rewards.gameCards) bits.push(`${rewards.gameCards} Card${rewards.gameCards === 1 ? "" : "s"}`);
-  if (rewards.spells) bits.push(`${rewards.spells} Invocation${rewards.spells === 1 ? "" : "s"}`);
-  if (rewards.artifacts) bits.push(`${rewards.artifacts} Artifact${rewards.artifacts === 1 ? "" : "s"}`);
-  return bits.length ? `Rewards: ${bits.join(", ")}` : "Rewards: none";
+function earthRequirementSummary(card: EarthAdvancementData): string {
+  const lines = earthAdvancementRequirementLines(card);
+  if (lines.length === 0) return "Requirements: none";
+  return `Requirements: ${lines.join(", ")}`;
 }
 
 function drawLeftSidebar(
@@ -2518,17 +2526,19 @@ function drawEarthPanelSmall(
     ctx.font = "12px 'Source Serif 4', serif";
     ctx.fillText(card.name, x + 8, cursorY + 16);
     ctx.font = "11px 'Source Serif 4', serif";
-    const details = `Tier ${card.tier} | Cost ${formatCrystals(card.costCrystals)} | AP ${earthAdvancementAp(card)}`;
+    const details = `Tier ${card.tier} | AP +${earthAdvancementAp(card)}`;
     const line = wrapText(ctx, details, w - 16)[0] ?? details;
     ctx.fillStyle = "rgba(245,241,230,0.8)";
     ctx.fillText(line, x + 8, cursorY + 32);
 
     const tipId = `earth-small-${startIndex + idx}`;
     if (hoveredId === tipId) {
+      const passiveLine = card.passiveBuff ? `Passive: ${card.passiveBuff.description}` : "Passive: none";
       const full = [
         card.name,
-        `Tier ${card.tier} | Cost ${formatCrystals(card.costCrystals)} | AP ${earthAdvancementAp(card)}`,
-        rewardSummary(card.rewards)
+        `Tier ${card.tier} | AP +${earthAdvancementAp(card)}`,
+        earthRequirementSummary(card),
+        passiveLine
       ];
       queueHoverTip(tipId, full, x + w + 8, cursorY - 10);
     }

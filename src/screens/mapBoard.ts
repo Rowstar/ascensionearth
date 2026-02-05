@@ -9,6 +9,9 @@ import {
   MOUNTAIN_CRYSTAL_TIER_1,
   MOUNTAIN_CRYSTAL_TIER_2,
   canBuyEarthAdvancement,
+  earthAdvancementCrystalCost,
+  earthAdvancementMissingRequirements,
+  earthAdvancementRequirementLines,
   formatCrystals
 } from "../engine/rules";
 import { dataStore } from "../engine/state";
@@ -393,19 +396,25 @@ function actionTooltipLines(state: GameState, action: MapActionType): string[] {
     }
     case "EARTH": {
       const crystalTotal = human ? formatCrystals(human.crystals) : "0";
-      const t1 = dataStore.earthAdvancements.find((c) => c.tier === 1);
-      const t2 = dataStore.earthAdvancements.find((c) => c.tier === 2);
-      const t3 = dataStore.earthAdvancements.find((c) => c.tier === 3);
+      const t1 = state.decks.earthAdvancementsT1[0] ? dataStore.earthAdvancementsById[state.decks.earthAdvancementsT1[0]] : undefined;
+      const t2 = state.decks.earthAdvancementsT2[0] ? dataStore.earthAdvancementsById[state.decks.earthAdvancementsT2[0]] : undefined;
+      const t3 = state.decks.earthAdvancementsT3[0] ? dataStore.earthAdvancementsById[state.decks.earthAdvancementsT3[0]] : undefined;
       const can1 = human ? canBuyEarthAdvancement(state, human, 1) : false;
       const can2 = human ? canBuyEarthAdvancement(state, human, 2) : false;
       const can3 = human ? canBuyEarthAdvancement(state, human, 3) : false;
+      const tierLine = (label: string, card: typeof t1, canBuy: boolean): string => {
+        if (!card || !human) return `${label}: no advancements remaining`;
+        const cost = earthAdvancementCrystalCost(card, human);
+        const req = earthAdvancementRequirementLines(card).slice(1, 2)[0] ?? "no extra requirement";
+        return `${label}: ${card.name} | ${formatCrystals(cost)} Crystals | ${req} (${canBuy ? "Ready" : "Missing requirements"})`;
+      };
       return [
         "Earth Advancement (Solo)",
-        "Spend Crystals to complete an Earth Advancement and gain Ascension Power + rewards.",
+        "Spend Crystals plus mixed resources to gain Personal AP and tiny passives.",
         `Your currency: ${crystalTotal} Crystals`,
-        `Tier 1: cost ${formatCrystals(t1?.costCrystals ?? 0)} Crystals (${can1 ? "Affordable" : "Not affordable"})`,
-        `Tier 2: cost ${formatCrystals(t2?.costCrystals ?? 0)} Crystals (${can2 ? "Affordable" : "Not affordable"})`,
-        `Tier 3: cost ${formatCrystals(t3?.costCrystals ?? 0)} Crystals (${can3 ? "Affordable" : "Not affordable"})`,
+        tierLine("Tier 1", t1, can1),
+        tierLine("Tier 2", t2, can2),
+        tierLine("Tier 3", t3, can3),
         "Tip: You can sell cards, invocations, artifacts, or non-basic teachings for Crystals."
       ];
     }
@@ -708,7 +717,7 @@ export function renderMapBoard(
     const human = state.players.find((p) => !p.isAI);
     if (earthNode && human) {
       const panelW = 240;
-      const panelH = 170;
+      const panelH = 210;
       let panelX = earthNode.x + earthNode.radius + 18;
       if (panelX + panelW > mapRect.x + mapRect.w - 8) {
         panelX = earthNode.x - earthNode.radius - panelW - 18;
@@ -722,15 +731,21 @@ export function renderMapBoard(
       ctx.fillText("Choose Tier", panelX + 14, panelY + 22);
 
       const tier = state.ui.selectedEarthTier ?? 1;
-      const t1 = dataStore.earthAdvancements.find((c) => c.tier === 1);
-      const t2 = dataStore.earthAdvancements.find((c) => c.tier === 2);
-      const t3 = dataStore.earthAdvancements.find((c) => c.tier === 3);
+      const t1 = state.decks.earthAdvancementsT1[0] ? dataStore.earthAdvancementsById[state.decks.earthAdvancementsT1[0]] : undefined;
+      const t2 = state.decks.earthAdvancementsT2[0] ? dataStore.earthAdvancementsById[state.decks.earthAdvancementsT2[0]] : undefined;
+      const t3 = state.decks.earthAdvancementsT3[0] ? dataStore.earthAdvancementsById[state.decks.earthAdvancementsT3[0]] : undefined;
       const can1 = canBuyEarthAdvancement(state, human, 1);
       const can2 = canBuyEarthAdvancement(state, human, 2);
       const can3 = canBuyEarthAdvancement(state, human, 3);
       const has1 = state.decks.earthAdvancementsT1.length > 0;
       const has2 = state.decks.earthAdvancementsT2.length > 0;
       const has3 = state.decks.earthAdvancementsT3.length > 0;
+      const labelForTier = (tierNum: 1 | 2 | 3, card: typeof t1) => {
+        if (!card) return `Tier ${tierNum} (Empty)`;
+        const crystalCost = earthAdvancementCrystalCost(card, human);
+        const selected = tier === tierNum ? " *" : "";
+        return `Tier ${tierNum}${selected} (${formatCrystals(crystalCost)})`;
+      };
       const rowX = panelX + 14;
       const rowW = panelW - 28;
       const rowH = 36;
@@ -743,7 +758,7 @@ export function renderMapBoard(
         rowY,
         rowW,
         rowH,
-        tier === 1 ? `Tier 1 * (${formatCrystals(t1?.costCrystals ?? 0)})` : `Tier 1 (${formatCrystals(t1?.costCrystals ?? 0)})`,
+        labelForTier(1, t1),
         has1,
         hoveredId === "earth-tier-1",
         () => dispatch({ type: "SET_EARTH_TIER", tier: 1 })
@@ -756,7 +771,7 @@ export function renderMapBoard(
         rowY + rowH + 8,
         rowW,
         rowH,
-        tier === 2 ? `Tier 2 * (${formatCrystals(t2?.costCrystals ?? 0)})` : `Tier 2 (${formatCrystals(t2?.costCrystals ?? 0)})`,
+        labelForTier(2, t2),
         has2,
         hoveredId === "earth-tier-2",
         () => dispatch({ type: "SET_EARTH_TIER", tier: 2 })
@@ -769,19 +784,25 @@ export function renderMapBoard(
         rowY + (rowH + 8) * 2,
         rowW,
         rowH,
-        tier === 3 ? `Tier 3 * (${formatCrystals(t3?.costCrystals ?? 0)})` : `Tier 3 (${formatCrystals(t3?.costCrystals ?? 0)})`,
+        labelForTier(3, t3),
         has3,
         hoveredId === "earth-tier-3",
         () => dispatch({ type: "SET_EARTH_TIER", tier: 3 })
       );
-      ctx.fillStyle = (tier === 1 ? can1 : tier === 2 ? can2 : can3) ? "#9cf7c4" : "#ffb3b3";
+      const selectedCard = tier === 1 ? t1 : tier === 2 ? t2 : t3;
+      const selectedReady = tier === 1 ? can1 : tier === 2 ? can2 : can3;
+      const selectedMissing = selectedCard ? earthAdvancementMissingRequirements(selectedCard, human) : ["No advancement in this tier"];
+      const reqLine = selectedCard ? earthAdvancementRequirementLines(selectedCard).slice(1, 2)[0] : undefined;
+      ctx.fillStyle = selectedReady ? "#9cf7c4" : "#ffb3b3";
       ctx.font = "12px 'Cinzel', serif";
       ctx.textAlign = "left";
-      ctx.fillText(
-        (tier === 1 ? can1 : tier === 2 ? can2 : can3) ? "Affordable" : "Not affordable",
-        panelX + 16,
-        panelY + panelH - 12
-      );
+      ctx.fillText(selectedReady ? "Requirements met" : "Requirements missing", panelX + 16, panelY + panelH - 36);
+      ctx.fillStyle = "rgba(245,241,230,0.8)";
+      ctx.font = "11px 'Source Serif 4', serif";
+      const infoText = selectedReady
+        ? (reqLine ?? "No extra requirement")
+        : selectedMissing[0];
+      ctx.fillText(infoText, panelX + 16, panelY + panelH - 18);
     }
   }
 

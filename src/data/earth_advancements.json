@@ -1,57 +1,89 @@
 {
   "earthAdvancements": [
     {
-      "id": "community_garden",
-      "name": "Community Garden",
+      "id": "rooted_exchange",
+      "name": "Rooted Exchange",
       "tier": 1,
-      "costCrystals": 8,
-      "value": 8,
-      "rewards": {
-        "gameCards": 2
-      }
-    },
-    {
-      "id": "river_cleanup",
-      "name": "River Cleanup",
-      "tier": 1,
-      "costCrystals": 10,
-      "value": 10,
-      "rewards": {
-        "gameCards": 2,
-        "spells": 1
-      }
-    },
-    {
-      "id": "solar_rooftops",
-      "name": "Solar Rooftops",
-      "tier": 2,
-      "costCrystals": 16,
-      "value": 16,
-      "rewards": {
-        "spells": 1,
-        "gameCards": 1
-      }
-    },
-    {
-      "id": "wildlife_corridors",
-      "name": "Wildlife Corridors",
-      "tier": 2,
-      "costCrystals": 20,
-      "value": 18,
-      "rewards": {
+      "requirements": {
+        "crystals": 8,
         "artifacts": 1
+      },
+      "apReward": 14,
+      "passiveBuff": {
+        "kind": "BASELINE_FORGIVENESS",
+        "amount": 1,
+        "description": "Baseline forgiveness +1."
       }
     },
     {
-      "id": "gaia_pulse",
-      "name": "Gaia Pulse",
+      "id": "circuit_of_renewal",
+      "name": "Circuit of Renewal",
+      "tier": 1,
+      "requirements": {
+        "crystals": 7,
+        "cardsAny": 2
+      },
+      "apReward": 13
+    },
+    {
+      "id": "glyph_of_echoing_rites",
+      "name": "Glyph of Echoing Rites",
+      "tier": 2,
+      "requirements": {
+        "crystals": 12,
+        "spells": 1
+      },
+      "apReward": 22,
+      "passiveBuff": {
+        "kind": "REVIEW_AP_BONUS",
+        "amount": 1,
+        "description": "+1 AP on future trophy claims."
+      }
+    },
+    {
+      "id": "concord_of_voices",
+      "name": "Concord of Voices",
+      "tier": 2,
+      "requirements": {
+        "crystals": 15,
+        "invocations": 2
+      },
+      "apReward": 24,
+      "passiveBuff": {
+        "kind": "CRYSTAL_DRIP",
+        "amount": 1,
+        "everyRounds": 4,
+        "description": "+1 Crystal every 4 rounds."
+      }
+    },
+    {
+      "id": "terran_mosaic",
+      "name": "Terran Mosaic",
       "tier": 3,
-      "costCrystals": 32,
-      "value": 35,
-      "rewards": {
+      "requirements": {
+        "crystals": 18,
+        "cardsByRarity": {
+          "common": 2,
+          "uncommon": 1
+        }
+      },
+      "apReward": 30
+    },
+    {
+      "id": "gaia_apex_protocol",
+      "name": "Gaia Apex Protocol",
+      "tier": 3,
+      "requirements": {
+        "crystals": 22,
         "artifacts": 1,
-        "spells": 1,
-        "gameCards": 2
+        "invocations": 1
+      },
+      "apReward": 36,
+      "passiveBuff": {
+        "kind": "CRYSTAL_DRIP",
+        "amount": 1,
+        "everyRounds": 3,
+        "description": "+1 Crystal every 3 rounds."
       }
     }
   ]
