@@ -57,6 +57,11 @@ export function drawPanel(
 // Per-button hover progress for smooth transitions (0 = idle, 1 = fully hovered)
 const buttonHoverProgress: Map<string, number> = new Map();
 let lastButtonFrameTime = 0;
+let uiMotionEnabled = true;
+
+export function setUiMotionEnabled(enabled: boolean): void {
+  uiMotionEnabled = enabled;
+}
 
 function lerpColor(a: string, b: string, t: number): string {
   const parseHex = (hex: string) => {
@@ -83,13 +88,15 @@ export function drawButton(
   onClick: () => void,
   hovered: boolean
 ): void {
-  // Update hover progress with 150ms transition
-  const now = performance.now();
-  const dtSec = lastButtonFrameTime > 0 ? (now - lastButtonFrameTime) / 150 : 0;
-  lastButtonFrameTime = now;
   const prev = buttonHoverProgress.get(id) ?? 0;
   const target = hovered ? 1 : 0;
-  const t = Math.max(0, Math.min(1, prev + (target > prev ? dtSec : -dtSec)));
+  let t = target;
+  if (uiMotionEnabled) {
+    const now = performance.now();
+    const dtSec = lastButtonFrameTime > 0 ? (now - lastButtonFrameTime) / 150 : 0;
+    lastButtonFrameTime = now;
+    t = Math.max(0, Math.min(1, prev + (target > prev ? dtSec : -dtSec)));
+  }
   buttonHoverProgress.set(id, t);
 
   const gradient = ctx.createLinearGradient(x, y, x + w, y + h);
@@ -794,7 +801,7 @@ export function drawRewardPool(
     return;
   }
 
-  const pulse = (Math.sin(performance.now() / 220) + 1) * 0.5;
+  const pulse = uiMotionEnabled ? (Math.sin(performance.now() / 220) + 1) * 0.5 : 0;
 
   pool.dice.forEach((die, index) => {
     const dx = x + 20 + index * 40;

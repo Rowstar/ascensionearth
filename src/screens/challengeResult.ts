@@ -103,7 +103,8 @@ export function drawChallengeResultModal(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   regions: HitRegion[],
-  dispatch: (action: GameAction) => void
+  dispatch: (action: GameAction) => void,
+  motionEnabled = true
 ): void {
   const result = state.ui.challengeResult;
   if (!result) {
@@ -111,17 +112,16 @@ export function drawChallengeResultModal(
     verdictStaggerStart = 0;
     return;
   }
-  const now = performance.now();
+  const now = motionEnabled ? performance.now() : 1;
   if (modalOpenTime === 0) {
     modalOpenTime = now;
-    verdictStaggerStart = 0;
+    verdictStaggerStart = motionEnabled ? 0 : now;
   }
   // Start stagger after slide-in completes
-  if (verdictStaggerStart === 0 && now - modalOpenTime >= MODAL_SLIDE_MS) {
+  if (motionEnabled && verdictStaggerStart === 0 && now - modalOpenTime >= MODAL_SLIDE_MS) {
     verdictStaggerStart = now;
   }
-  const rawT = Math.min(1, (now - modalOpenTime) / MODAL_SLIDE_MS);
-  const p = easeOutCubic(rawT);
+  const p = motionEnabled ? easeOutCubic(Math.min(1, (now - modalOpenTime) / MODAL_SLIDE_MS)) : 1;
 
   const { width, height } = ctx.canvas;
   const overlayId = "challenge-result-block";
@@ -158,7 +158,7 @@ export function drawChallengeResultModal(
   if (mode === "details") {
     drawDetailsView(ctx, state, regions, dispatch, result, x, y, panelW, panelH);
   } else {
-    drawVerdictView(ctx, state, regions, dispatch, result, x, y, panelW, panelH);
+    drawVerdictView(ctx, state, regions, dispatch, result, x, y, panelW, panelH, motionEnabled);
   }
   ctx.restore(); // matches slide-in animation save
 }
@@ -172,7 +172,8 @@ function drawVerdictView(
   x: number,
   y: number,
   panelW: number,
-  panelH: number
+  panelH: number,
+  motionEnabled: boolean
 ): void {
   const humanId = state.players.find((p) => !p.isAI)?.id;
   const human = result.participants.find((p) => p.playerId === humanId) ?? result.participants[0];
@@ -220,10 +221,11 @@ function drawVerdictView(
   ctx.fillText("TP", colTpX, tableY + 17);
   ctx.textAlign = "left";
 
-  const now = performance.now();
+  const now = motionEnabled ? performance.now() : 0;
+  const stagger = (index: number): number => (motionEnabled ? staggerAlpha(index, now) : 1);
   scores.forEach((entry, index) => {
     const rowY = tableY + rowH * (index + 1);
-    const alpha = staggerAlpha(index, now);
+    const alpha = stagger(index);
     if (alpha <= 0) return;
     ctx.save();
     ctx.globalAlpha *= alpha;
@@ -249,7 +251,7 @@ function drawVerdictView(
   const groupTotal = result.participants
     .filter((p) => !p.withdrew)
     .reduce((sum, p) => sum + (p.totalPower ?? 0), 0);
-  const groupAlpha = staggerAlpha(sIdx++, now);
+  const groupAlpha = stagger(sIdx++);
   if (groupAlpha > 0) {
     ctx.save();
     ctx.globalAlpha *= groupAlpha;
@@ -266,7 +268,7 @@ function drawVerdictView(
     const typeLabel = kp.type === "cave" ? "Cave Keystone" : "Mountain Keystone";
     const unitLabel = kp.type === "cave" ? "AP" : "TP";
     const maxValue = kp.type === "cave" ? 300 : 250;
-    const ksAlpha = staggerAlpha(sIdx++, now);
+    const ksAlpha = stagger(sIdx++);
     if (ksAlpha > 0) {
       ctx.save();
       ctx.globalAlpha *= ksAlpha;
@@ -282,7 +284,7 @@ function drawVerdictView(
       ? [50, 100, 200, 300]
       : [40, 80, 160, 250];
     const nextMilestone = milestones.find((m) => kp.totalAfter < m);
-    const msAlpha = staggerAlpha(sIdx++, now);
+    const msAlpha = stagger(sIdx++);
     if (msAlpha > 0) {
       ctx.save();
       ctx.globalAlpha *= msAlpha;
@@ -300,7 +302,7 @@ function drawVerdictView(
     yy += 18;
   }
 
-  const explAlpha = staggerAlpha(sIdx, now);
+  const explAlpha = stagger(sIdx);
   if (explAlpha > 0) {
     ctx.save();
     ctx.globalAlpha *= explAlpha;

@@ -8,6 +8,8 @@ import { loadPreferences, savePreferences } from "./utils/preferences";
 import { nextGameSpeedMode } from "./utils/gameSpeed";
 import { loadGame, hasSavedGame, deleteSave } from "./utils/save";
 import { deriveFocusMode, focusModeDataValue } from "./utils/focusMode";
+import { resolveMotionEnabled } from "./utils/motion";
+import { setUiMotionEnabled } from "./render/ui";
 
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
 canvas.tabIndex = 0;
@@ -141,6 +143,8 @@ let screenFadeAlpha = 0; // 1.0 = fully black, decays to 0 over 500ms
 
 app.start((ctx, dt) => {
   let state = store.state;
+  const motionEnabled = resolveMotionEnabled(state, prefersReducedMotion);
+  setUiMotionEnabled(motionEnabled);
   setSoundEnabled(state.ui.soundEnabled ?? true);
   setMusicEnabled(state.ui.musicEnabled ?? true);
   setMusicVolume((state.ui.musicVolume ?? 45) / 100);
@@ -256,6 +260,7 @@ app.start((ctx, dt) => {
     }
     store.dispatch({ type: "AI_TICK", dt });
     state = store.state;
+    setUiMotionEnabled(resolveMotionEnabled(state, prefersReducedMotion));
     syncRootFocusAttrs();
     renderMatch(ctx, state, regions, (action) => store.dispatch(action), app.hoveredId, dt, prefersReducedMotion);
   }
