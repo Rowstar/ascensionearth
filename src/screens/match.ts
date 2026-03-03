@@ -33,10 +33,23 @@ import { dataStore } from "../engine/state";
 import { renderMapBoard } from "./mapBoard";
 import { drawChallengeResultModal } from "./challengeResult";
 import { wrapText } from "../render/text";
-import { activateSound, playChime, playTurnStart, setMusicEnabled, setMusicVolume, setSoundEnabled } from "../render/sfx";
+import {
+  activateSound,
+  playArtifactGained,
+  playCardCommit,
+  playChallengeComplete,
+  playChime,
+  playDeny,
+  playTeachingGained,
+  playTurnStart,
+  setMusicEnabled,
+  setMusicVolume,
+  setSoundEnabled
+} from "../render/sfx";
 import { savePreferences } from "../utils/preferences";
 import { gameSpeedLabel, nextGameSpeedMode } from "../utils/gameSpeed";
 import { deriveFocusMode, shortFocusModeLabel } from "../utils/focusMode";
+import { resolveMotionEnabled } from "../utils/motion";
 
 type Particle = {
   x: number;
@@ -140,7 +153,7 @@ const rewardParticles: Particle[] = [];
 const fxPulses: FxPulse[] = [];
 let lastLogCount = 0;
 let lastParticleLogCount = 0;
-let lastFxLogCount = 0;
+let lastSfxEventId = 0;
 let lastLogLineCount = 0;
 let toastText: string | null = null;
 let toastTime = 0;
@@ -230,6 +243,78 @@ function spawnBurst(x: number, y: number, count: number, color: string, size = 3
       color,
       size: size + Math.random() * 1.5
     });
+  }
+}
+
+function consumeSfxEvents(
+  state: GameState,
+  reduceMotion: boolean,
+  mapCenterX: number,
+  mapCenterY: number,
+  cavePulseX: number,
+  cavePulseY: number,
+  mountainPulseX: number,
+  mountainPulseY: number
+): void {
+  const events = state.sfxEvents ?? [];
+  const latestId = events[events.length - 1]?.id ?? 0;
+  if (latestId < lastSfxEventId) {
+    lastSfxEventId = 0;
+  }
+  for (const event of events) {
+    if (event.id <= lastSfxEventId) {
+      continue;
+    }
+    switch (event.type) {
+      case "DENY":
+        playDeny();
+        break;
+      case "SHOP_PURCHASE":
+      case "ITEM_SOLD":
+      case "CHALLENGE_REWARD_CLAIM":
+      case "TROPHY_AWARDED":
+      case "ASCENSION_TARGET_REACHED":
+        playChime("reward");
+        break;
+      case "TP_THRESHOLD_REACHED":
+        if (!reduceMotion) {
+          pushPulse("tp", mapCenterX, mapCenterY, "#6fd6c2", "TP THRESHOLD");
+          spawnBurst(mapCenterX, mapCenterY, 18, "#6fd6c2", 3.5);
+        }
+        playChime("tp");
+        break;
+      case "KEYSTONE_MILESTONE": {
+        const track = event.payload?.track === "mountain" ? "mountain" : "cave";
+        const pulseX = track === "mountain" ? mountainPulseX : cavePulseX;
+        const pulseY = track === "mountain" ? mountainPulseY : cavePulseY;
+        const color = track === "mountain" ? "#ffb78a" : "#f0d88c";
+        const label = track === "mountain" ? "MOUNTAIN KEYSTONE" : "CAVE KEYSTONE";
+        if (!reduceMotion) {
+          pushPulse("keystone", pulseX, pulseY, color, label);
+          spawnBurst(pulseX, pulseY, 16, color, 3.5);
+        }
+        playChime("keystone");
+        break;
+      }
+      case "CHALLENGE_PHASE":
+        playChime("phase");
+        break;
+      case "CHALLENGE_COMMIT":
+        playCardCommit();
+        break;
+      case "CHALLENGE_COMPLETE":
+        playChallengeComplete();
+        break;
+      case "TEACHING_GAINED":
+        playTeachingGained();
+        break;
+      case "ARTIFACT_GAINED":
+        playArtifactGained();
+        break;
+      default:
+        break;
+    }
+    lastSfxEventId = event.id;
   }
 }
 
@@ -404,21 +489,22 @@ function drawTurnToast(
     return;
   }
 
-  const now = reduceMotionActive ? 0 : performance.now();
+  const now = performance.now();
   if (turnToastOpenTime === 0) turnToastOpenTime = now;
   if (!turnToastSoundPlayed) {
     playTurnStart();
     turnToastSoundPlayed = true;
   }
-  const fadeT = Math.min(1, (now - turnToastOpenTime) / TURN_TOAST_FADE_MS);
-  const fadeAlpha = easeOutCubic(fadeT);
+  const fadeAlpha = reduceMotionActive
+    ? 1
+    : easeOutCubic(Math.min(1, (now - turnToastOpenTime) / TURN_TOAST_FADE_MS));
 
   const { width, height } = ctx.canvas;
   // Larger panel, centered on screen
   const panelW = Math.min(520, width - 60);
   const panelH = 140 + toast.lines.length * 22;
   const x = Math.floor(width / 2 - panelW / 2);
-  const slideOffset = (1 - fadeAlpha) * 30;
+  const slideOffset = reduceMotionActive ? 0 : (1 - fadeAlpha) * 30;
   const y = Math.floor(height / 2 - panelH / 2) + slideOffset;
 
   // Semi-transparent backdrop with fade
@@ -1502,7 +1588,8 @@ export function renderMatch(
   dt = 0,
   prefersReducedMotion = false
 ): void {
-  const reduceMotion = prefersReducedMotion || !(state.ui.motionEnabled ?? true);
+  const motionEnabled = resolveMotionEnabled(state, prefersReducedMotion);
+  const reduceMotion = !motionEnabled;
   reduceMotionActive = reduceMotion;
   if (reduceMotion) {
     rewardParticles.length = 0;
@@ -1535,47 +1622,16 @@ export function renderMatch(
   const mountainPulseX = layout.mapRect.x + 132;
   const mountainPulseY = layout.mapRect.y + 89;
 
-  if (state.log.length !== lastFxLogCount) {
-    for (let i = lastFxLogCount; i < state.log.length; i += 1) {
-      const line = state.log[i] ?? "";
-      if (line.includes("surge of insight")) {
-        if (!reduceMotion) {
-          pushPulse("tp", mapCenterX, mapCenterY, "#6fd6c2", "INSIGHT SURGE");
-          spawnBurst(mapCenterX, mapCenterY, 18, "#6fd6c2", 3.5);
-        }
-        playChime("tp");
-      }
-      if (
-        line.includes("Reveal begins.") ||
-        line.includes("Resolve begins.") ||
-        line.includes("Guardian: The draft begins.") ||
-        line.includes("Commit turns begin.")
-      ) {
-        playChime("phase");
-      }
-      if (line.includes("bought a Game Card") || line.includes("bought an Invocation")) {
-        playChime("reward");
-      }
-      if (line.includes("Earth Ascension reaches its target")) {
-        playChime("reward");
-      }
-      if (line.includes("Cave Keystone")) {
-        if (!reduceMotion) {
-          pushPulse("keystone", cavePulseX, cavePulseY, "#f0d88c", "CAVE KEYSTONE");
-          spawnBurst(cavePulseX, cavePulseY, 16, "#f0d88c", 3.5);
-        }
-        playChime("keystone");
-      }
-      if (line.includes("Mountain Keystone")) {
-        if (!reduceMotion) {
-          pushPulse("keystone", mountainPulseX, mountainPulseY, "#ffb78a", "MOUNTAIN KEYSTONE");
-          spawnBurst(mountainPulseX, mountainPulseY, 16, "#ffb78a", 3.5);
-        }
-        playChime("keystone");
-      }
-    }
-    lastFxLogCount = state.log.length;
-  }
+  consumeSfxEvents(
+    state,
+    reduceMotion,
+    mapCenterX,
+    mapCenterY,
+    cavePulseX,
+    cavePulseY,
+    mountainPulseX,
+    mountainPulseY
+  );
 
   if (!reduceMotion) {
     updateParticles(state, mapCenterX, layout.mapRect.y + 60, dt);
@@ -1602,7 +1658,7 @@ export function renderMatch(
     drawToast(ctx, toastText, toastTime);
   }
   if (state.phase !== "GAME_OVER") {
-    renderMapBoard(ctx, state, regions, dispatch, hoveredId, dt, layout.mapRect, hoverReady, !reduceMotion);
+    renderMapBoard(ctx, state, regions, dispatch, hoveredId, dt, layout.mapRect, hoverReady, motionEnabled);
   }
 
   const actionSelectFocusActive = focusMode === "ACTION_SELECT" && state.phase === "ACTION_SELECT";
@@ -1631,7 +1687,7 @@ export function renderMatch(
   }
 
   if (state.phase === "CHALLENGE" && state.challenge) {
-    drawChallengeOverlay(ctx, state, regions, dispatch, hoveredId, layout);
+    drawChallengeOverlay(ctx, state, regions, dispatch, hoveredId, layout, focusMode);
     if (state.ui.menuOpen) {
       drawMenuOverlay(ctx, state, regions, dispatch, hoveredId, layout);
     }
@@ -1677,7 +1733,7 @@ export function renderMatch(
 
 
   if (state.ui.challengeResult) {
-    drawChallengeResultModal(ctx, state, regions, dispatch);
+    drawChallengeResultModal(ctx, state, regions, dispatch, motionEnabled);
     hoverTip = null;
     return;
   }
@@ -3631,13 +3687,222 @@ function drawChallengeInitiativePopup(
   ctx.restore();
 }
 
+function drawChallengeFocusDrawer(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  challenge: ChallengeState,
+  regions: HitRegion[],
+  dispatch: (action: GameAction) => void,
+  hoveredId: string | undefined,
+  layout: Layout,
+  draftPickerId?: string
+): void {
+  if (!state.ui.focusDrawerOpen) {
+    return;
+  }
+  const mobile = ctx.canvas.width < 980;
+  const drawerW = mobile ? ctx.canvas.width - 16 : Math.min(460, Math.max(340, Math.floor(ctx.canvas.width * 0.33)));
+  const drawerH = mobile
+    ? Math.min(380, Math.max(280, Math.floor(ctx.canvas.height * 0.5)))
+    : Math.max(300, ctx.canvas.height - (layout.topBar.y + layout.topBar.h + 16));
+  const drawerX = mobile ? 8 : ctx.canvas.width - drawerW - 8;
+  const drawerY = mobile ? ctx.canvas.height - drawerH - 8 : layout.topBar.y + layout.topBar.h + 8;
+
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.36)";
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.restore();
+  regions.push({
+    id: "challenge-focus-drawer-scrim",
+    x: 0,
+    y: 0,
+    w: ctx.canvas.width,
+    h: ctx.canvas.height,
+    onClick: () => dispatch({ type: "UI_SET_FOCUS_DRAWER_OPEN", value: false }),
+    cursor: "default"
+  });
+
+  drawPanel(ctx, drawerX, drawerY, drawerW, drawerH, "rgba(10,14,22,0.96)", "#5a6983");
+  ctx.fillStyle = "#f5f1e6";
+  ctx.font = "700 12px 'Cinzel', serif";
+  ctx.textAlign = "left";
+  ctx.fillText(mobile ? "CHALLENGE DETAILS (BOTTOM)" : "CHALLENGE DETAILS (RIGHT)", drawerX + 12, drawerY + 20);
+  drawButton(
+    ctx,
+    regions,
+    "challenge-focus-drawer-close",
+    drawerX + drawerW - 54,
+    drawerY + 6,
+    46,
+    24,
+    "Close",
+    () => dispatch({ type: "UI_SET_FOCUS_DRAWER_OPEN", value: false }),
+    hoveredId === "challenge-focus-drawer-close"
+  );
+
+  const tabs: FocusDrawerTab[] = ["STATUS", "REWARDS", "LOG"];
+  const requestedTab = state.ui.focusDrawerTab;
+  const activeTab = tabs.includes(requestedTab ?? "STATUS") ? (requestedTab as FocusDrawerTab) : "STATUS";
+  const tabY = drawerY + 38;
+  const tabGap = 6;
+  const tabW = Math.floor((drawerW - 24 - tabGap * 2) / 3);
+  tabs.forEach((tab, index) => {
+    const tabId = `challenge-focus-tab-${tab.toLowerCase()}`;
+    const label = tab === "STATUS" ? "Status" : tab === "REWARDS" ? "Rewards" : "Log";
+    drawButton(
+      ctx,
+      regions,
+      tabId,
+      drawerX + 12 + index * (tabW + tabGap),
+      tabY,
+      tabW,
+      24,
+      label,
+      () => dispatch({ type: "UI_SET_FOCUS_DRAWER_TAB", tab }),
+      hoveredId === tabId || activeTab === tab
+    );
+  });
+
+  const contentX = drawerX + 12;
+  const contentY = tabY + 34;
+  const contentW = drawerW - 24;
+  const contentH = drawerH - (contentY - drawerY) - 12;
+  drawPanel(ctx, contentX, contentY, contentW, contentH, "rgba(16,20,30,0.92)", "#435066");
+  const innerX = contentX + 8;
+  const innerY = contentY + 8;
+  const innerW = contentW - 16;
+  const innerH = contentH - 16;
+
+  if (activeTab === "LOG") {
+    const rawLines = challenge.logEntries ?? [];
+    ctx.font = "11px 'Source Serif 4', serif";
+    const wrapped: string[] = [];
+    rawLines.forEach((line) => {
+      wrapText(ctx, line, innerW - 10).forEach((entry) => wrapped.push(entry));
+    });
+    const lineHeight = 16;
+    const visibleLines = Math.max(1, Math.floor((innerH - 32) / lineHeight));
+    const maxOffset = Math.max(0, wrapped.length - visibleLines);
+    const offset = Math.min(state.ui.challengeLogScroll ?? 0, maxOffset);
+    const start = Math.max(0, wrapped.length - visibleLines - offset);
+    const visible = wrapped.slice(start, start + visibleLines);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(innerX, innerY, innerW, innerH - 30);
+    ctx.clip();
+    ctx.fillStyle = "rgba(245,241,230,0.9)";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    visible.forEach((line, idx) => {
+      ctx.fillText(line, innerX + 2, innerY + 2 + idx * lineHeight);
+    });
+    ctx.restore();
+    const btnY = innerY + innerH - 24;
+    drawButton(ctx, regions, "challenge-focus-log-up", innerX + innerW - 92, btnY, 42, 20, "Up", () => {
+      dispatch({ type: "SET_CHALLENGE_LOG_SCROLL", value: offset + 2 });
+    }, hoveredId === "challenge-focus-log-up");
+    drawButton(ctx, regions, "challenge-focus-log-down", innerX + innerW - 46, btnY, 42, 20, "Down", () => {
+      dispatch({ type: "SET_CHALLENGE_LOG_SCROLL", value: offset - 2 });
+    }, hoveredId === "challenge-focus-log-down");
+  } else if (activeTab === "REWARDS") {
+    const rewards = challenge.rewardPool?.rewards ?? [];
+    const humanId = state.players.find((p) => !p.isAI)?.id;
+    const participantCount = challenge.participants.length || 1;
+    let y = innerY + 2;
+    ctx.textAlign = "left";
+    ctx.font = "11px 'Source Serif 4', serif";
+    if (rewards.length === 0) {
+      ctx.fillStyle = "rgba(245,241,230,0.65)";
+      ctx.fillText("No rewards currently in this challenge.", innerX + 2, y + 14);
+    }
+    rewards.forEach((reward, index) => {
+      if (y > innerY + innerH - 26) return;
+      const label = rewardLabel(reward);
+      const claimedBy = reward.claimedByPlayerId
+        ? state.players.find((p) => p.id === reward.claimedByPlayerId)?.name ?? reward.claimedByPlayerId
+        : undefined;
+      const finalCost = reward.finalCost ?? (reward.baseCostPerParticipant ?? 0) * participantCount;
+      const canPick =
+        challenge.phase === "DRAFT" &&
+        humanId &&
+        humanId === draftPickerId &&
+        !!reward.isUnlocked &&
+        !reward.isClaimed &&
+        !!reward.id;
+      const rowId = `challenge-focus-reward-${reward.id ?? index}-${index}`;
+      drawPanel(ctx, innerX, y, innerW, 34, "rgba(20,24,32,0.78)", "#3d475f");
+      ctx.fillStyle = reward.isClaimed ? "rgba(245,241,230,0.5)" : "rgba(195,232,176,0.95)";
+      ctx.fillText(clampToWidth(ctx, `${canPick ? ">> " : ""}${label}`, innerW - 12), innerX + 8, y + 14);
+      ctx.fillStyle = "rgba(245,241,230,0.62)";
+      const statusTag = reward.isClaimed
+        ? claimedBy ? `Claimed (${claimedBy})` : "Claimed"
+        : reward.isUnlocked
+          ? "Unlocked"
+          : `Locked (${Math.floor(challenge.totalGroupAp ?? 0)}/${finalCost} AP)`;
+      ctx.fillText(clampToWidth(ctx, statusTag, innerW - 12), innerX + 8, y + 28);
+      if (canPick) {
+        regions.push({
+          id: rowId,
+          x: innerX,
+          y,
+          w: innerW,
+          h: 34,
+          onClick: () => dispatch({ type: "CHALLENGE_DRAFT_PICK", rewardId: reward.id ?? "" }),
+          cursor: "pointer"
+        });
+      }
+      y += 38;
+    });
+  } else {
+    const human = state.players.find((p) => !p.isAI);
+    const order = challenge.turnOrder.length > 0 ? challenge.turnOrder : challenge.order;
+    const activeId = order[challenge.activeTurnIndex] ?? order[0];
+    const activeName = state.players.find((p) => p.id === activeId)?.name ?? "Unknown";
+    const playerTP = human ? (challenge.challengeTPByPlayer?.[human.id] ?? 0) : 0;
+    const thresholdsAwarded = human
+      ? (challenge.challengeTPThresholdsAwarded?.[human.id] ?? { basic: false, rare: false, mythic: false })
+      : { basic: false, rare: false, mythic: false };
+    const lines: string[] = [
+      `Phase: ${challenge.phase}`,
+      `Acting: ${activeName}`,
+      `Group AP: ${Math.floor(challenge.totalGroupAp ?? 0)}`,
+      `Your TP: ${Math.floor(playerTP)} (${thresholdsAwarded.basic ? "B✓" : "B○"} ${thresholdsAwarded.rare ? "R✓" : "R○"} ${thresholdsAwarded.mythic ? "M✓" : "M○"})`
+    ];
+    const track = challenge.journeyType === "cave" ? state.guardianKeystones?.cave : challenge.journeyType === "mountain" ? state.guardianKeystones?.mountain : undefined;
+    if (track) {
+      const max = challenge.journeyType === "cave" ? CAVE_MYTHIC_THRESHOLD : MOUNTAIN_MYTHIC_THRESHOLD;
+      lines.push(`${challenge.journeyType === "cave" ? "Cave" : "Mountain"} Keystone: ${Math.floor(track.progress)}/${max}`);
+    }
+    const contributions = challenge.contestants
+      .map((playerId) => {
+        const name = state.players.find((p) => p.id === playerId)?.name ?? playerId;
+        const ap = challenge.apContributionByPlayer?.[playerId] ?? 0;
+        const you = human?.id === playerId ? " (You)" : "";
+        return `${name}${you}: ${Math.floor(ap)} AP`;
+      })
+      .sort((a, b) => a.localeCompare(b));
+    lines.push("Contributions:");
+    lines.push(...contributions);
+
+    ctx.fillStyle = "rgba(245,241,230,0.88)";
+    ctx.font = "11px 'Source Serif 4', serif";
+    ctx.textAlign = "left";
+    const wrapped = lines.flatMap((line) => wrapText(ctx, line, innerW - 8));
+    wrapped.slice(0, Math.max(1, Math.floor(innerH / 14))).forEach((line, idx) => {
+      ctx.fillText(line, innerX + 2, innerY + 2 + idx * 14);
+    });
+  }
+}
+
 function drawChallengeOverlay(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   regions: HitRegion[],
   dispatch: (action: GameAction) => void,
   hoveredId: string | undefined,
-  layout: Layout
+  layout: Layout,
+  focusMode: UiFocusMode
 ): void {
   const { width, height } = ctx.canvas;
   const challenge = state.challenge;
@@ -3681,6 +3946,8 @@ function drawChallengeOverlay(
   const isChallengePhase =
     challenge.phase === "COMMIT_TURNS" || challenge.phase === "REVEAL" || challenge.phase === "RESOLVE" || challenge.phase === "DRAFT";
   const isObserving = isChallengePhase && (!human || !challenge.contestants.includes(human.id)) && actingId !== human?.id;
+  const challengeFocusActive = focusMode === "CHALLENGE";
+  const mobile = width < 980;
 
   const panelX = layout.safeLeft;
   const panelY = layout.topBar.y + layout.topBar.h + layout.gap;
@@ -3692,33 +3959,28 @@ function drawChallengeOverlay(
   const innerY = panelY + 12;
   const innerW = panelW - 24;
   const innerH = panelH - 24;
-  const baseBannerH = 64;
-  const bannerExtra = challenge.phase === "COMMIT_TURNS" ? 18 : 0;
+  const baseBannerH = challengeFocusActive ? (mobile ? 224 : 138) : 64;
+  const bannerExtra = challengeFocusActive ? 0 : challenge.phase === "COMMIT_TURNS" ? 18 : 0;
   const bannerH = baseBannerH + bannerExtra;
-  const stepperH = 24;
+  const stepperH = challengeFocusActive ? 0 : 24;
   const bannerY = innerY;
   const stepperY = bannerY + bannerH + 6;
   const contentY = stepperY + stepperH + 12;
   const contentH = innerY + innerH - contentY;
 
   // Sidebar extends to full page height (overlapping hand dock area) and is wider
-  const sidebarW = width < 1200 ? 340 : width < 1400 ? 380 : 420;
-  const sidebarX = width - layout.safeRight - sidebarW;
+  const sidebarW = challengeFocusActive ? 0 : width < 1200 ? 340 : width < 1400 ? 380 : 420;
+  const sidebarX = challengeFocusActive ? innerX + innerW : width - layout.safeRight - sidebarW;
   const sidebarY = contentY;
   const sidebarBottomY = height - 10;
   const sidebarH = sidebarBottomY - sidebarY;
 
   const boardX = innerX;
   const boardY = contentY;
-  const boardW = sidebarX - boardX - 12;
+  const boardW = challengeFocusActive ? innerW : sidebarX - boardX - 12;
   const boardH = contentH;
 
   drawPanel(ctx, innerX, bannerY, innerW, bannerH, "rgba(15,18,26,0.86)", "#3a465e");
-  ctx.fillStyle = "#f5f1e6";
-  ctx.font = "700 16px 'Cinzel', serif";
-  ctx.textAlign = "left";
-  ctx.fillText(`CHALLENGE: ${challenge.id}`, innerX + 12, bannerY + 22);
-
   const phaseLabels: Record<string, string> = {
     ROLL_ORDER: "ROLL ORDER",
     COMMIT_TURNS: "COMMIT",
@@ -3738,86 +4000,199 @@ function drawChallengeOverlay(
     DRAFT: "Guardian draft in progress. Highest contributors pick first."
   };
   const instruction = instructions[challenge.phase] ?? "";
-
-  ctx.textAlign = "center";
-  ctx.font = "600 12px 'Cinzel', serif";
-  ctx.fillText(`PHASE: ${phaseLabel}`, innerX + innerW / 2, bannerY + 22);
-  ctx.font = "12px 'Source Serif 4', serif";
-  ctx.fillStyle = "rgba(245,241,230,0.75)";
-  const instructionLines = wrapText(ctx, instruction, innerW * 0.4);
-  const instructionMax = challenge.phase === "COMMIT_TURNS" ? 1 : 2;
-  instructionLines.slice(0, instructionMax).forEach((line, idx) => {
-    ctx.fillText(line, innerX + innerW / 2, bannerY + 40 + idx * 14);
-  });
-
-  if (challenge.phase === "COMMIT_TURNS") {
-    const activePlayers = challenge.contestants.filter((id) => !challenge.folded.includes(id));
-    const passStreak = challenge.passesInRow ?? 0;
-    const humanId = state.players.find((p) => !p.isAI)?.id;
-    const humanPlayed = humanId ? challenge.played[humanId] : undefined;
-    const humanCommitsUsed = humanPlayed ? (humanPlayed.selected.length + humanPlayed.spellsPlayed.length) : 0;
-
-    ctx.fillStyle = 'rgba(245,241,230,0.7)';
-    ctx.font = "11px 'Source Serif 4', serif";
-    ctx.textAlign = 'center';
-
-    const parts: string[] = [];
-    if (humanId && challenge.contestants.includes(humanId) && !challenge.folded.includes(humanId)) {
-      parts.push(`Commits used: ${humanCommitsUsed} / ${CHALLENGE_COMMIT_MAX}`);
-    }
-    parts.push(`Pass streak: ${passStreak} / ${activePlayers.length}`);
-    parts.push(`Ends when streak = ${activePlayers.length}`);
-
-    ctx.fillText(parts.join(" | "), innerX + innerW / 2, bannerY + bannerH - 8);
-  }
-
-  ctx.textAlign = "right";
-  ctx.fillStyle = "#f5f1e6";
-  ctx.font = "12px 'Cinzel', serif";
-  if (order.length > 0) {
-    const turnSuffix = "";
-    ctx.fillText(`ACTING NOW: ${activeName} (${activeIndex + 1}/${order.length})${turnSuffix}`, innerX + innerW - 50, bannerY + 22);
-  }
-  ctx.font = "11px 'Source Serif 4', serif";
-  ctx.fillStyle = "rgba(245,241,230,0.75)";
-  const orderLine = (challenge.phase === "DRAFT" && draftOrder.length > 0)
-    ? `Draft order: ${draftOrder.map((id) => state.players.find((p) => p.id === id)?.name ?? id).join(" -> ")}`
-    : order.length
-      ? order.map((id) => {
-          const name = state.players.find((p) => p.id === id)?.name ?? id;
-          const roll = challenge.rolls[id];
-          return roll ? `${name} (${roll})` : name;
-        }).join(" -> ")
-      : "Order: rolling...";
-  const orderLines = wrapText(ctx, orderLine, innerW * 0.42);
-  orderLines.slice(0, 2).forEach((line, idx) => {
-    ctx.fillText(line, innerX + innerW - 50, bannerY + 40 + idx * 14);
-  });
-
-  ctx.textAlign = "left";
-  const steps = ["Roll Order", "Commit", "Reveal", "Resolve", "Draft"];
-  const stepIndex = challenge.phase === "ROLL_ORDER"
-    ? 0
-    : challenge.phase === "COMMIT_TURNS"
-      ? 1
-      : challenge.phase === "REVEAL"
-        ? 2
-        : challenge.phase === "RESOLVE"
-          ? 3
-          : 4;
-  const stepX = innerX + 8;
-  ctx.font = "12px 'Source Serif 4', serif";
-  steps.forEach((step, idx) => {
-    ctx.fillStyle = idx === stepIndex ? "#f5f1e6" : "rgba(245,241,230,0.45)";
-    ctx.fillText(idx === stepIndex ? `> ${step}` : step, stepX + idx * 120, stepperY + 16);
-  });
-
   const canSkipObserving = isObserving && !showInitiativePopup;
 
   // Auto-play availability (button drawn at bottom of sidebar with other action buttons)
   const isHumanInChallenge = challenge.contestants.includes(human?.id ?? "");
   const canAutoPlay = isHumanInChallenge && !state.ui.challengeResult &&
     (challenge.phase === "COMMIT_TURNS" || challenge.phase === "REVEAL" || challenge.phase === "RESOLVE" || challenge.phase === "DRAFT");
+
+  if (challengeFocusActive) {
+    const headerPad = 10;
+    const beatGap = 8;
+    const beatW = mobile ? innerW - headerPad * 2 : Math.max(120, Math.floor((innerW - headerPad * 2 - beatGap * 2) / 3));
+    const beatH = mobile
+      ? Math.max(52, Math.floor((bannerH - 28 - beatGap * 2) / 3))
+      : bannerH - 26;
+    const beatY = bannerY + 12;
+    const beat1X = innerX + headerPad;
+    const beat1Y = beatY;
+    const beat2X = mobile ? beat1X : beat1X + beatW + beatGap;
+    const beat2Y = mobile ? beat1Y + beatH + beatGap : beat1Y;
+    const beat3X = mobile ? beat1X : beat2X + beatW + beatGap;
+    const beat3Y = mobile ? beat2Y + beatH + beatGap : beat1Y;
+    const humanId = human?.id;
+    const yourAp = humanId ? challenge.apContributionByPlayer?.[humanId] ?? 0 : 0;
+    const leadAp = challenge.contestants.reduce((best, playerId) => {
+      const ap = challenge.apContributionByPlayer?.[playerId] ?? 0;
+      return Math.max(best, ap);
+    }, 0);
+    const apGap = Math.max(0, leadAp - yourAp);
+    const readinessPass = !humanId
+      ? false
+      : challenge.phase === "COMMIT_TURNS"
+        ? challenge.contestants.includes(humanId) && !challenge.folded.includes(humanId)
+        : yourAp >= leadAp;
+    const readinessText = readinessPass
+      ? challenge.phase === "COMMIT_TURNS" ? "Ready to act." : "You are at or above current baseline."
+      : challenge.phase === "COMMIT_TURNS"
+        ? "Not your beat or already folded."
+        : `You are ${apGap} AP behind the current lead.`;
+
+    drawPanel(ctx, beat1X, beat1Y, beatW, beatH, "rgba(18,24,34,0.92)", "#4c5d78");
+    ctx.fillStyle = "#f5f1e6";
+    ctx.font = "700 11px 'Cinzel', serif";
+    ctx.textAlign = "left";
+    ctx.fillText("1) THREAT", beat1X + 8, beat1Y + 16);
+    ctx.font = "11px 'Source Serif 4', serif";
+    ctx.fillStyle = "rgba(245,241,230,0.86)";
+    const threatLine = `${phaseLabel} • ${activeName} (${Math.max(1, activeIndex + 1)}/${Math.max(1, order.length)})`;
+    ctx.fillText(clampToWidth(ctx, threatLine, beatW - 16), beat1X + 8, beat1Y + 34);
+    ctx.fillText(
+      clampToWidth(ctx, `Contestants ${challenge.contestants.length} • Group AP ${Math.floor(challenge.totalGroupAp ?? 0)}`, beatW - 16),
+      beat1X + 8,
+      beat1Y + 50
+    );
+
+    drawPanel(ctx, beat2X, beat2Y, beatW, beatH, "rgba(18,24,34,0.92)", "#4c5d78");
+    ctx.fillStyle = "#f5f1e6";
+    ctx.font = "700 11px 'Cinzel', serif";
+    ctx.fillText("2) READINESS", beat2X + 8, beat2Y + 16);
+    ctx.fillStyle = readinessPass ? "#8bd4a1" : "#f2b37c";
+    ctx.font = "700 12px 'Cinzel', serif";
+    ctx.fillText(readinessPass ? "PASS BASELINE" : "BELOW BASELINE", beat2X + 8, beat2Y + 34);
+    ctx.fillStyle = "rgba(245,241,230,0.82)";
+    ctx.font = "11px 'Source Serif 4', serif";
+    wrapText(ctx, readinessText, beatW - 16).slice(0, 2).forEach((line, idx) => {
+      ctx.fillText(line, beat2X + 8, beat2Y + 50 + idx * 13);
+    });
+
+    drawPanel(ctx, beat3X, beat3Y, beatW, beatH, "rgba(18,24,34,0.92)", "#4c5d78");
+    ctx.fillStyle = "#f5f1e6";
+    ctx.font = "700 11px 'Cinzel', serif";
+    ctx.fillText("3) CHOICES", beat3X + 8, beat3Y + 16);
+    const btnW = beatW - 16;
+    const btnH = mobile ? 20 : 22;
+    const btnStep = btnH + 4;
+    let choiceY = beat3Y + 22;
+    const isHumanActiveCommit = challenge.phase === "COMMIT_TURNS" && !!human && isHumanContestant && activeId === human.id;
+    if (isHumanActiveCommit) {
+      drawButton(ctx, regions, "challenge-focus-confirm", beat3X + 8, choiceY, btnW, btnH, "Confirm / Pass", () => {
+        dispatch({ type: "LOCK_CARDS" });
+      }, hoveredId === "challenge-focus-confirm");
+      choiceY += btnStep;
+      drawButton(ctx, regions, "challenge-focus-withdraw", beat3X + 8, choiceY, btnW, btnH, "Withdraw", () => {
+        if (state.ui.confirmWithdraw) {
+          dispatch({ type: "UI_SET_WITHDRAW_CONFIRM", value: false });
+          dispatch({ type: "FOLD_CHALLENGE" });
+        } else {
+          dispatch({ type: "UI_SET_WITHDRAW_CONFIRM", value: true });
+        }
+      }, hoveredId === "challenge-focus-withdraw");
+      choiceY += btnStep;
+    } else if (canSkipObserving) {
+      drawButton(ctx, regions, "challenge-focus-skip", beat3X + 8, choiceY, btnW, btnH, "Skip AI Phase", () => {
+        dispatch({ type: "FAST_FORWARD_CHALLENGE" });
+      }, hoveredId === "challenge-focus-skip");
+      choiceY += btnStep;
+    } else if (canAutoPlay) {
+      drawButton(ctx, regions, "challenge-focus-autoplay", beat3X + 8, choiceY, btnW, btnH, "Auto-Play", () => {
+        dispatch({ type: "CHALLENGE_AUTO_PLAY" });
+      }, hoveredId === "challenge-focus-autoplay");
+      choiceY += btnStep;
+    } else {
+      drawPanel(ctx, beat3X + 8, choiceY, btnW, btnH, "rgba(20,24,32,0.88)", "#3d475f");
+      ctx.fillStyle = "rgba(245,241,230,0.72)";
+      ctx.font = "11px 'Source Serif 4', serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Waiting for current actor...", beat3X + 8 + btnW / 2, choiceY + 15);
+      choiceY += btnStep;
+    }
+    const detailsLabel = state.ui.focusDrawerOpen ? "Hide Details" : "Show Details";
+    drawButton(ctx, regions, "challenge-focus-details", beat3X + 8, choiceY, btnW, btnH, detailsLabel, () => {
+      dispatch({ type: "UI_TOGGLE_FOCUS_DRAWER" });
+      if (!state.ui.focusDrawerOpen) {
+        dispatch({ type: "UI_SET_FOCUS_DRAWER_TAB", tab: "STATUS" });
+      }
+    }, hoveredId === "challenge-focus-details");
+  } else {
+    ctx.fillStyle = "#f5f1e6";
+    ctx.font = "700 16px 'Cinzel', serif";
+    ctx.textAlign = "left";
+    ctx.fillText(`CHALLENGE: ${challenge.id}`, innerX + 12, bannerY + 22);
+
+    ctx.textAlign = "center";
+    ctx.font = "600 12px 'Cinzel', serif";
+    ctx.fillText(`PHASE: ${phaseLabel}`, innerX + innerW / 2, bannerY + 22);
+    ctx.font = "12px 'Source Serif 4', serif";
+    ctx.fillStyle = "rgba(245,241,230,0.75)";
+    const instructionLines = wrapText(ctx, instruction, innerW * 0.4);
+    const instructionMax = challenge.phase === "COMMIT_TURNS" ? 1 : 2;
+    instructionLines.slice(0, instructionMax).forEach((line, idx) => {
+      ctx.fillText(line, innerX + innerW / 2, bannerY + 40 + idx * 14);
+    });
+
+    if (challenge.phase === "COMMIT_TURNS") {
+      const activePlayers = challenge.contestants.filter((id) => !challenge.folded.includes(id));
+      const passStreak = challenge.passesInRow ?? 0;
+      const humanId = state.players.find((p) => !p.isAI)?.id;
+      const humanPlayed = humanId ? challenge.played[humanId] : undefined;
+      const humanCommitsUsed = humanPlayed ? (humanPlayed.selected.length + humanPlayed.spellsPlayed.length) : 0;
+
+      ctx.fillStyle = "rgba(245,241,230,0.7)";
+      ctx.font = "11px 'Source Serif 4', serif";
+      ctx.textAlign = "center";
+
+      const parts: string[] = [];
+      if (humanId && challenge.contestants.includes(humanId) && !challenge.folded.includes(humanId)) {
+        parts.push(`Commits used: ${humanCommitsUsed} / ${CHALLENGE_COMMIT_MAX}`);
+      }
+      parts.push(`Pass streak: ${passStreak} / ${activePlayers.length}`);
+      parts.push(`Ends when streak = ${activePlayers.length}`);
+
+      ctx.fillText(parts.join(" | "), innerX + innerW / 2, bannerY + bannerH - 8);
+    }
+
+    ctx.textAlign = "right";
+    ctx.fillStyle = "#f5f1e6";
+    ctx.font = "12px 'Cinzel', serif";
+    if (order.length > 0) {
+      ctx.fillText(`ACTING NOW: ${activeName} (${activeIndex + 1}/${order.length})`, innerX + innerW - 50, bannerY + 22);
+    }
+    ctx.font = "11px 'Source Serif 4', serif";
+    ctx.fillStyle = "rgba(245,241,230,0.75)";
+    const orderLine = (challenge.phase === "DRAFT" && draftOrder.length > 0)
+      ? `Draft order: ${draftOrder.map((id) => state.players.find((p) => p.id === id)?.name ?? id).join(" -> ")}`
+      : order.length
+        ? order.map((id) => {
+            const name = state.players.find((p) => p.id === id)?.name ?? id;
+            const roll = challenge.rolls[id];
+            return roll ? `${name} (${roll})` : name;
+          }).join(" -> ")
+        : "Order: rolling...";
+    const orderLines = wrapText(ctx, orderLine, innerW * 0.42);
+    orderLines.slice(0, 2).forEach((line, idx) => {
+      ctx.fillText(line, innerX + innerW - 50, bannerY + 40 + idx * 14);
+    });
+
+    ctx.textAlign = "left";
+    const steps = ["Roll Order", "Commit", "Reveal", "Resolve", "Draft"];
+    const stepIndex = challenge.phase === "ROLL_ORDER"
+      ? 0
+      : challenge.phase === "COMMIT_TURNS"
+        ? 1
+        : challenge.phase === "REVEAL"
+          ? 2
+          : challenge.phase === "RESOLVE"
+            ? 3
+            : 4;
+    const stepX = innerX + 8;
+    ctx.font = "12px 'Source Serif 4', serif";
+    steps.forEach((step, idx) => {
+      ctx.fillStyle = idx === stepIndex ? "#f5f1e6" : "rgba(245,241,230,0.45)";
+      ctx.fillText(idx === stepIndex ? `> ${step}` : step, stepX + idx * 120, stepperY + 16);
+    });
+  }
 
   // Settings cog at top-right of banner
   drawButton(ctx, regions, "challenge-settings", innerX + innerW - 40, bannerY + 8, 32, 28, "\u2699", () => {
@@ -4188,7 +4563,11 @@ function drawChallengeOverlay(
   }
 
   // --- Detect new card commits → spawn slide + AP float animations ---
-  const nowAnim = performance.now();
+  const nowAnim = reduceMotionActive ? 0 : performance.now();
+  if (reduceMotionActive) {
+    cardSlideAnims.length = 0;
+    cardFlipAnims.length = 0;
+  }
   for (const pid of seatIds) {
     const pl = challenge.played[pid];
     if (!pl) continue;
@@ -4233,9 +4612,11 @@ function drawChallengeOverlay(
           }
           const slotX0 = seatCx - rowW2 / 2 + ni * (cardW + cardGap) + cardW / 2;
           spawnApFloat(apVal, slotX0, seatCy - cardH / 2 - 8);
-          // Impact particles + glow ring at commit slot
-          spawnBurst(slotX0, seatCy, 8, "#e6c15a", 2.5);
-          pushPulse("reward", slotX0, seatCy, "#e6c15a");
+          if (!reduceMotionActive) {
+            // Impact particles + glow ring at commit slot
+            spawnBurst(slotX0, seatCy, 8, "#e6c15a", 2.5);
+            pushPulse("reward", slotX0, seatCy, "#e6c15a");
+          }
         }
       }
     }
@@ -4253,7 +4634,7 @@ function drawChallengeOverlay(
       if (!pl) continue;
       const items = pl.committedItems ?? [];
       items.forEach((item) => {
-        if (item.kind === "card") {
+        if (item.kind === "card" && !reduceMotionActive) {
           cardFlipAnims.push({
             playerId: revealedPid,
             slotIndex: 0,
@@ -4279,11 +4660,13 @@ function drawChallengeOverlay(
   }
 
   // --- Clean up expired animations ---
-  for (let i = cardSlideAnims.length - 1; i >= 0; i--) {
-    if (nowAnim - cardSlideAnims[i].startTime > cardSlideAnims[i].duration) cardSlideAnims.splice(i, 1);
-  }
-  for (let i = cardFlipAnims.length - 1; i >= 0; i--) {
-    if (nowAnim - cardFlipAnims[i].startTime > cardFlipAnims[i].duration) cardFlipAnims.splice(i, 1);
+  if (!reduceMotionActive) {
+    for (let i = cardSlideAnims.length - 1; i >= 0; i--) {
+      if (nowAnim - cardSlideAnims[i].startTime > cardSlideAnims[i].duration) cardSlideAnims.splice(i, 1);
+    }
+    for (let i = cardFlipAnims.length - 1; i >= 0; i--) {
+      if (nowAnim - cardFlipAnims[i].startTime > cardFlipAnims[i].duration) cardFlipAnims.splice(i, 1);
+    }
   }
 
   // --- Draw AP float-up numbers ---
@@ -4297,6 +4680,79 @@ function drawChallengeOverlay(
     const thinkX = tableCenterX - thinkW / 2;
     const thinkY = tableCenterY - thinkH / 2;
     drawAiThinkingIndicator(ctx, state.ui.aiStatus!.message, thinkX, thinkY, thinkW, thinkH);
+  }
+
+  if (challengeFocusActive) {
+    drawChallengeFocusDrawer(
+      ctx,
+      state,
+      challenge,
+      regions,
+      dispatch,
+      hoveredId,
+      layout,
+      draftPickerId
+    );
+
+    if (challenge.phase === "COMMIT_TURNS" && state.ui.confirmWithdraw && human && isHumanContestant && activeId === human.id) {
+      const modalW = Math.min(520, width - 80);
+      const modalH = 220;
+      const modalX = Math.floor(width / 2 - modalW / 2);
+      const modalY = Math.floor(height / 2 - modalH / 2);
+
+      ctx.save();
+      ctx.fillStyle = "rgba(0,0,0,0.55)";
+      ctx.fillRect(0, 0, width, height);
+      ctx.restore();
+
+      drawPanel(ctx, modalX, modalY, modalW, modalH, "rgba(14,16,22,0.96)", "#4a556d");
+      ctx.fillStyle = "#f5f1e6";
+      ctx.font = "700 16px 'Cinzel', serif";
+      ctx.textAlign = "left";
+      ctx.fillText("Confirm Withdraw", modalX + 18, modalY + 30);
+
+      ctx.font = "12px 'Source Serif 4', serif";
+      ctx.fillStyle = "rgba(245,241,230,0.8)";
+      const lines = [
+        "- You leave the challenge immediately.",
+        "- You keep all uncommitted hand cards.",
+        "- You will not draft rewards.",
+        "- Your face-down committed Game Card returns to your hand.",
+        "- All other committed items are still spent."
+      ];
+      lines.forEach((line, idx) => {
+        ctx.fillText(line, modalX + 18, modalY + 56 + idx * 18);
+      });
+
+      const btnY = modalY + modalH - 52;
+      const btnW = Math.floor((modalW - 18 * 2 - 10) / 2);
+      drawButton(ctx, regions, "withdraw-cancel", modalX + 18, btnY, btnW, 36, "CANCEL", () => {
+        dispatch({ type: "UI_SET_WITHDRAW_CONFIRM", value: false });
+      }, hoveredId === "withdraw-cancel");
+
+      drawButton(ctx, regions, "withdraw-confirm", modalX + 18 + btnW + 10, btnY, btnW, 36, "CONFIRM", () => {
+        dispatch({ type: "UI_SET_WITHDRAW_CONFIRM", value: false });
+        dispatch({ type: "FOLD_CHALLENGE" });
+      }, hoveredId === "withdraw-confirm");
+    }
+
+    if (challenge.phase === "DRAFT") {
+      drawDraftPickOverlay(ctx, state, regions, dispatch, challenge, hoveredId);
+    }
+    if (state.ui.pendingThirdEyeSelection) {
+      drawThirdEyeSelectionModal(ctx, state, regions, dispatch, hoveredId);
+    }
+    if (showInitiativePopup) {
+      drawChallengeInitiativePopup(ctx, state, challenge, regions, hoveredId, dispatch, initiativeKey);
+    }
+    if (state.ui.challengeFlashText) {
+      drawPanel(ctx, width / 2 - 120, height / 2 - 40, 240, 80, "rgba(10,12,18,0.92)", "#4a556d");
+      ctx.fillStyle = "#f5f1e6";
+      ctx.font = "700 18px 'Cinzel', serif";
+      ctx.textAlign = "center";
+      ctx.fillText(state.ui.challengeFlashText, width / 2, height / 2 + 6);
+    }
+    return;
   }
 
   drawPanel(ctx, sidebarX, sidebarY, sidebarW, sidebarH, "rgba(14,18,26,0.86)", "#3a465e");
@@ -4699,7 +5155,6 @@ function drawChallengeOverlay(
           w: statusW - 12,
           h: 28,
           onClick: () => {
-            playChime("reward");
             dispatch({ type: "CHALLENGE_DRAFT_PICK", rewardId: reward.id ?? "" });
           },
           cursor: "pointer"
@@ -6340,7 +6795,8 @@ function drawDevOverlay(
 
   // Scrollable list area
   const listY = tabY + tabH + 12;
-  const listH = panelH - tabH - 80;
+  const diagnosticsH = 96;
+  const listH = panelH - tabH - 80 - diagnosticsH;
   const itemH = 28;
   const scroll = state.ui.devPanelScroll ?? 0;
 
@@ -6415,6 +6871,34 @@ function drawDevOverlay(
     const current = state.ui.devPanelScroll ?? 0;
     dispatch({ type: "SET_DEV_SCROLL", value: Math.min(maxScroll, current + itemH * 3) });
   }, false);
+
+  const diagX = panelX + 8;
+  const diagY = listY + listH + 8;
+  const diagW = panelW - 16;
+  drawPanel(ctx, diagX, diagY, diagW, diagnosticsH - 10, "rgba(12,14,20,0.86)", "#3d475f");
+  ctx.fillStyle = "rgba(245,241,230,0.88)";
+  ctx.font = "600 11px 'Cinzel', serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Recent SFX Events (dev)", diagX + 8, diagY + 16);
+  const recentSfx = (state.sfxEvents ?? []).slice(-10).reverse();
+  ctx.font = "10px 'Source Serif 4', serif";
+  let sfxY = diagY + 30;
+  recentSfx.forEach((event) => {
+    if (sfxY > diagY + diagnosticsH - 20) {
+      return;
+    }
+    const payloadBits: string[] = [];
+    const phase = typeof event.payload?.phase === "string" ? event.payload.phase : undefined;
+    const track = typeof event.payload?.track === "string" ? event.payload.track : undefined;
+    const kind = typeof event.payload?.kind === "string" ? event.payload.kind : undefined;
+    if (phase) payloadBits.push(phase);
+    if (track) payloadBits.push(track);
+    if (kind) payloadBits.push(kind);
+    const payloadLabel = payloadBits.length > 0 ? ` (${payloadBits.join("/")})` : "";
+    ctx.fillStyle = "rgba(245,241,230,0.76)";
+    ctx.fillText(`#${event.id} ${event.type}${payloadLabel}`, diagX + 8, sfxY);
+    sfxY += 12;
+  });
 
   // Info text
   ctx.fillStyle = "#8a8a8a";

@@ -268,7 +268,32 @@ export type Phase =
 
 export type UiFocusMode = "ACTION_SELECT" | "CHALLENGE" | "RESULTS" | "EARTH_CHAMBER";
 
-export type FocusDrawerTab = "INVENTORY" | "TEACHINGS" | "ARTIFACTS" | "LOG";
+export type FocusDrawerTab = "INVENTORY" | "TEACHINGS" | "ARTIFACTS" | "LOG" | "STATUS" | "REWARDS";
+
+export type SfxEventType =
+  | "DENY"
+  | "CRYSTALS_GAINED"
+  | "CRYSTALS_SPENT"
+  | "SHOP_PURCHASE"
+  | "ITEM_SOLD"
+  | "TP_THRESHOLD_REACHED"
+  | "KEYSTONE_MILESTONE"
+  | "CHALLENGE_PHASE"
+  | "CHALLENGE_COMMIT"
+  | "CHALLENGE_REWARD_CLAIM"
+  | "CHALLENGE_COMPLETE"
+  | "CHALLENGE_OUTCOME"
+  | "TROPHY_AWARDED"
+  | "TEACHING_GAINED"
+  | "ARTIFACT_GAINED"
+  | "ASCENSION_TARGET_REACHED";
+
+export type SfxEvent = {
+  id: number;
+  type: SfxEventType;
+  timestamp: number;
+  payload?: Record<string, unknown>;
+};
 
 export type ChallengePhase =
   | "SETUP"
@@ -647,6 +672,8 @@ export interface GameState {
   aiPendingReveal?: boolean;
   reviewHistory: ProgressReviewState[];
   trophyCooldowns: Record<string, number>;
+  sfxEvents?: SfxEvent[];
+  sfxSeq?: number;
 }
 
 export type GameAction =
