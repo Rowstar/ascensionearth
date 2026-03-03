@@ -16,6 +16,7 @@ import {
 import { PROGRESS_REVIEW_INTERVAL, progressReviewBaseline } from "../engine/progression";
 import { dataStore } from "../engine/state";
 import { drawButton, drawPanel, drawRoundedRect } from "../render/ui";
+import { getArtImage, UI_TOKENS } from "../render/artSystem";
 import { HitRegion } from "../render/canvas";
 import { playHover, stopHover } from "../render/sfx";
 import {
@@ -471,6 +472,27 @@ export function renderMapBoard(
 
   drawParchment(ctx, mapRect.x, mapRect.y, mapRect.w, mapRect.h, t);
   drawTerrain(ctx, mapRect.x, mapRect.y, mapRect.w, mapRect.h, t);
+  if (motionEnabled) {
+    const dust = getArtImage("vfxDustMotes");
+    if (dust) {
+      ctx.save();
+      ctx.globalAlpha = 0.12;
+      ctx.drawImage(dust, mapRect.x, mapRect.y, mapRect.w, mapRect.h);
+      ctx.restore();
+    }
+    const rune = getArtImage("vfxRuneCircle");
+    if (rune) {
+      const size = Math.min(mapRect.w, mapRect.h) * 0.68;
+      const cx = mapRect.x + mapRect.w * 0.5;
+      const cy = mapRect.y + mapRect.h * 0.53;
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(t * 0.065);
+      ctx.globalAlpha = UI_TOKENS.glowTiers.contained.alpha * 0.45;
+      ctx.drawImage(rune, -size / 2, -size / 2, size, size);
+      ctx.restore();
+    }
+  }
 
   const nodes = MAP_NODES.map((node) => ({
     ...node,

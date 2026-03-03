@@ -1,3 +1,5 @@
+import { getArtImage, UI_TOKENS, withTokenAlpha } from "../artSystem";
+
 export type MapActionType = "MEDITATE" | "MOUNTAIN" | "CAVE" | "EARTH";
 
 export type MapNode = {
@@ -9,20 +11,46 @@ export type MapNode = {
 };
 
 const PALETTE = {
-  parchment: "#d7c7a8",
-  parchmentDark: "#bba98a",
-  ink: "#2b2318",
-  inkSoft: "rgba(45, 35, 24, 0.35)",
-  glowGold: "#e6c87a",
-  glowTeal: "#72d7c6",
-  glowIndigo: "#7e78c7",
-  cave: "#4b3a2c",
-  mountain: "#4a5c6b",
-  meditate: "#3f6b5c",
-  earth: "#4e4a6f",
-  panel: "rgba(18,16,14,0.65)",
-  panelStroke: "rgba(255,255,255,0.2)"
+  parchment: UI_TOKENS.colors.backgroundParchment,
+  parchmentDark: UI_TOKENS.colors.backgroundParchmentDark,
+  ink: UI_TOKENS.colors.neutralInk,
+  inkSoft: withTokenAlpha(UI_TOKENS.colors.neutralInk, 0.35),
+  glowGold: UI_TOKENS.colors.goldTrim,
+  glowTeal: UI_TOKENS.colors.primaryAccent,
+  glowIndigo: UI_TOKENS.colors.secondaryAccent,
+  cave: "#2b3f44",
+  mountain: "#294a5b",
+  meditate: "#2f6267",
+  earth: "#304565",
+  panel: UI_TOKENS.colors.panelFill,
+  panelStroke: UI_TOKENS.colors.panelStroke
 } as const;
+
+const NODE_ART_KEY: Record<MapActionType, "nodeCave" | "nodeMountain" | "nodeMeditate" | "nodeEarth"> = {
+  CAVE: "nodeCave",
+  MOUNTAIN: "nodeMountain",
+  MEDITATE: "nodeMeditate",
+  EARTH: "nodeEarth"
+};
+
+function drawMapBackgroundArt(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): boolean {
+  const mapImage = getArtImage("mapBackground");
+  if (!mapImage) {
+    return false;
+  }
+  ctx.save();
+  roundRect(ctx, x, y, w, h, UI_TOKENS.radii.large);
+  ctx.clip();
+  ctx.drawImage(mapImage, x, y, w, h);
+  ctx.restore();
+  return true;
+}
 
 export const MAP_NODES: MapNode[] = [
   { id: "MOUNTAIN", xPct: 0.73, yPct: 0.24, radius: 70, label: "Mountain Journey" },
@@ -55,6 +83,16 @@ export function drawParchment(
   h: number,
   t: number
 ): void {
+  if (drawMapBackgroundArt(ctx, x, y, w, h)) {
+    ctx.save();
+    ctx.strokeStyle = PALETTE.parchmentDark;
+    ctx.lineWidth = UI_TOKENS.strokes.primary;
+    roundRect(ctx, x, y, w, h, UI_TOKENS.radii.large);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
   ctx.save();
   const bg = ctx.createLinearGradient(x, y, x + w, y + h);
   bg.addColorStop(0, "#dfd1b3");
@@ -62,8 +100,8 @@ export function drawParchment(
   bg.addColorStop(1, "#c3af8f");
   ctx.fillStyle = bg;
   ctx.strokeStyle = PALETTE.parchmentDark;
-  ctx.lineWidth = 3;
-  roundRect(ctx, x, y, w, h, 22);
+  ctx.lineWidth = UI_TOKENS.strokes.primary;
+  roundRect(ctx, x, y, w, h, UI_TOKENS.radii.large);
   ctx.fill();
   ctx.stroke();
 
@@ -372,6 +410,9 @@ function drawLake(ctx: CanvasRenderingContext2D, x: number, y: number, w: number
 }
 
 export function drawTerrain(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, t: number): void {
+  if (getArtImage("mapBackground")) {
+    return;
+  }
   ctx.save();
   ctx.globalAlpha = 0.9;
 
@@ -458,7 +499,8 @@ export function drawNodeAura(
   disabled: boolean
 ): void {
   ctx.save();
-  const pulse = 1 + Math.sin(t * 2) * 0.04;
+  const breathingHz = (Math.PI * 2) / Math.max(0.001, UI_TOKENS.motion.mapBreathingMs / 1000);
+  const pulse = 1 + Math.sin(t * breathingHz) * 0.035;
   const size = radius * (selected ? 1.14 : pulse);
   ctx.globalAlpha = disabled ? 0.3 : 0.9;
   ctx.fillStyle = "rgba(18,16,14,0.4)";
@@ -466,9 +508,9 @@ export function drawNodeAura(
   ctx.arc(x, y, radius * 0.72, 0, Math.PI * 2);
   ctx.fill();
   ctx.strokeStyle = color;
-  ctx.lineWidth = hovered ? 4 : 2.5;
+  ctx.lineWidth = hovered ? UI_TOKENS.strokes.primary + 2 : UI_TOKENS.strokes.primary + 0.5;
   ctx.shadowColor = color;
-  ctx.shadowBlur = hovered ? 18 : 12;
+  ctx.shadowBlur = hovered ? UI_TOKENS.glowTiers.radiant.radius : UI_TOKENS.glowTiers.contained.radius;
   ctx.beginPath();
   ctx.arc(x, y, size, 0, Math.PI * 2);
   ctx.stroke();
@@ -570,8 +612,29 @@ export function drawNode(
   disabled: boolean
 ): void {
   const glow = node.id === "MEDITATE" ? PALETTE.glowTeal : node.id === "EARTH" ? PALETTE.glowIndigo : PALETTE.glowGold;
+  if (selected || hovered) {
+    const shadow = UI_TOKENS.shadows.nodeActive;
+    ctx.save();
+    ctx.shadowColor = shadow.color;
+    ctx.shadowBlur = shadow.blur;
+    ctx.fillStyle = "rgba(0,0,0,0.001)";
+    ctx.beginPath();
+    ctx.arc(x + shadow.offsetX, y + shadow.offsetY, node.radius * 0.92, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
   drawNodeAura(ctx, x, y, node.radius, glow, t, hovered, selected, disabled);
-  drawNodeIcon(ctx, node.id, x, y, 1, t);
+  const nodePlate = getArtImage(NODE_ART_KEY[node.id]);
+  if (nodePlate) {
+    const lift = hovered ? UI_TOKENS.motion.hoverLiftPx : 0;
+    const drawR = node.radius * (selected ? 1.02 : 0.98);
+    ctx.save();
+    ctx.globalAlpha = disabled ? 0.42 : 1;
+    ctx.drawImage(nodePlate, x - drawR, y - drawR - lift, drawR * 2, drawR * 2);
+    ctx.restore();
+  } else {
+    drawNodeIcon(ctx, node.id, x, y, 1, t);
+  }
 
   ctx.save();
   ctx.font = "600 12px 'Cinzel', serif";
@@ -580,7 +643,7 @@ export function drawNode(
   const labelX = x - labelW / 2;
   const labelY = y + node.radius + 12;
   ctx.fillStyle = disabled ? "rgba(30,26,20,0.5)" : PALETTE.panel;
-  roundRect(ctx, labelX, labelY, labelW, labelH, 10);
+  roundRect(ctx, labelX, labelY, labelW, labelH, UI_TOKENS.radii.small);
   ctx.fill();
   ctx.strokeStyle = PALETTE.panelStroke;
   ctx.stroke();

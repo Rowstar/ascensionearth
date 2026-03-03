@@ -27,6 +27,7 @@ import {
   getMeditationInvocationChance
 } from "../engine/rules";
 import { cardPalette, drawArtifactMiniCard, drawButton, drawCard, drawCardBack, drawCardFrame, drawPanel, drawRoundedRect, drawTeachingScrollCard } from "../render/ui";
+import { getArtImage, UI_TOKENS } from "../render/artSystem";
 import { drawTooltip } from "../render/components/mapBoard";
 import { DragPayload, HitRegion } from "../render/canvas";
 import { dataStore } from "../engine/state";
@@ -210,6 +211,25 @@ function withAlpha(color: string, alpha: number): string {
   const rgb = hexToRgb(color);
   if (!rgb) return color;
   return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+}
+
+function drawUiIcon(
+  ctx: CanvasRenderingContext2D,
+  key: "iconCrystal" | "iconTeachings" | "iconAp" | "iconTp" | "iconDice" | "iconTrophy" | "iconShop" | "iconMenu" | "iconSound" | "iconMusic",
+  x: number,
+  y: number,
+  size: number,
+  alpha = 1
+): boolean {
+  const icon = getArtImage(key);
+  if (!icon) {
+    return false;
+  }
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  ctx.drawImage(icon, x, y, size, size);
+  ctx.restore();
+  return true;
 }
 
 function pushPulse(kind: FxPulse["kind"], x: number, y: number, color: string, label?: string): void {
@@ -1143,31 +1163,36 @@ function drawActionFocusMiniHud(
   const y = layout.handDock.y + 2;
   const w = layout.handDock.w;
   const h = 34;
-  drawPanel(ctx, x, y, w, h, "rgba(14,18,26,0.92)", "#4f5c73");
+  drawPanel(ctx, x, y, w, h, UI_TOKENS.colors.panelFillElevated, UI_TOKENS.colors.panelStroke);
   const drawerW = 104;
   const drawerX = x + w - drawerW - 8;
   const infoW = Math.max(140, drawerX - x - 12);
   const compact = infoW < 460;
-  ctx.fillStyle = "#f5f1e6";
+  ctx.fillStyle = UI_TOKENS.colors.textPrimary;
   ctx.font = compact ? "600 10px 'Source Serif 4', serif" : "600 11px 'Source Serif 4', serif";
   ctx.textAlign = "left";
-  const labels = compact
+  const stats = compact
     ? [
-        `Crys ${formatCrystals(human.crystals)}`,
-        `Teach ${human.teachings.length + human.passiveTeachings.length}`,
-        `AP ${Math.floor(finalScore(human))}`,
-        `${phaseLabel(state)}`
+        { icon: "iconCrystal" as const, label: `Crys ${formatCrystals(human.crystals)}` },
+        { icon: "iconTeachings" as const, label: `Teach ${human.teachings.length + human.passiveTeachings.length}` },
+        { icon: "iconAp" as const, label: `AP ${Math.floor(finalScore(human))}` },
+        { icon: "iconMenu" as const, label: `${phaseLabel(state)}` }
       ]
     : [
-        `Crystals ${formatCrystals(human.crystals)}`,
-        `Teachings ${human.teachings.length + human.passiveTeachings.length}`,
-        `Your AP ${Math.floor(finalScore(human))}`,
-        `Phase ${phaseLabel(state)}`
+        { icon: "iconCrystal" as const, label: `Crystals ${formatCrystals(human.crystals)}` },
+        { icon: "iconTeachings" as const, label: `Teachings ${human.teachings.length + human.passiveTeachings.length}` },
+        { icon: "iconAp" as const, label: `Your AP ${Math.floor(finalScore(human))}` },
+        { icon: "iconMenu" as const, label: `Phase ${phaseLabel(state)}` }
       ];
-  const segmentW = Math.max(78, Math.floor(infoW / labels.length));
-  labels.forEach((label, idx) => {
-    ctx.fillStyle = idx === labels.length - 1 ? "rgba(245,241,230,0.78)" : "#f5f1e6";
-    ctx.fillText(clampToWidth(ctx, label, segmentW - 8), x + 10 + idx * segmentW, y + 21);
+  const segmentW = Math.max(78, Math.floor(infoW / stats.length));
+  stats.forEach((entry, idx) => {
+    const iconSize = compact ? 12 : 13;
+    const iconX = x + 10 + idx * segmentW;
+    const iconY = y + (h - iconSize) / 2;
+    const iconDrawn = drawUiIcon(ctx, entry.icon, iconX, iconY, iconSize, idx === stats.length - 1 ? 0.78 : 0.95);
+    const textX = iconX + (iconDrawn ? iconSize + 6 : 0);
+    ctx.fillStyle = idx === stats.length - 1 ? UI_TOKENS.colors.textSecondary : UI_TOKENS.colors.textPrimary;
+    ctx.fillText(clampToWidth(ctx, entry.label, segmentW - (textX - iconX) - 6), textX, y + 21);
   });
 
   const label = state.ui.focusDrawerOpen ? "Close Drawer" : "Open Drawer";
@@ -1938,14 +1963,16 @@ function drawTopBar(
   focusMode: UiFocusMode
 ): void {
   const { x, y, w, h } = layout.topBar;
-  drawPanel(ctx, x, y, w, h, "rgba(14,18,26,0.8)", "#3a465e");
-  ctx.fillStyle = "#f5f1e6";
+  drawPanel(ctx, x, y, w, h, UI_TOKENS.colors.panelFill, UI_TOKENS.colors.panelStroke);
+  ctx.fillStyle = UI_TOKENS.colors.textPrimary;
   ctx.font = "700 16px 'Cinzel', serif";
   ctx.textBaseline = "alphabetic";
   ctx.textAlign = "left";
   const earthCurrent = Math.floor(state.earthAscensionPower);
   const earthTarget = state.earthAscensionTarget;
-  ctx.fillText(`EARTH ASCENSION (GROUP): ${earthCurrent} / ${earthTarget}`, x + 16, y + 22);
+  const earthIconSize = 14;
+  drawUiIcon(ctx, "iconAp", x + 14, y + 8, earthIconSize, 0.95);
+  ctx.fillText(`EARTH ASCENSION (GROUP): ${earthCurrent} / ${earthTarget}`, x + 16 + earthIconSize + 6, y + 22);
 
   const barX = x + 16;
   const barY = y + 30;
@@ -1954,11 +1981,12 @@ function drawTopBar(
   ctx.fillStyle = "rgba(70,80,96,0.8)";
   ctx.fillRect(barX, barY, barW, barH);
   const pct = earthTarget > 0 ? Math.min(1, earthCurrent / earthTarget) : 0;
-  ctx.fillStyle = "#8bd4a1";
+  ctx.fillStyle = UI_TOKENS.colors.successMuted;
   ctx.fillRect(barX, barY, barW * pct, barH);
 
-  ctx.fillStyle = "rgba(245,241,230,0.75)";
+  ctx.fillStyle = UI_TOKENS.colors.textSecondary;
   ctx.font = "11px 'Source Serif 4', serif";
+  drawUiIcon(ctx, "iconDice", barX - 2, y + h - 20, 12, 0.86);
   ctx.fillText(`Turn ${state.turn}`, barX, y + h - 10);
 
   // Draw player scores centered at the top of the top bar
@@ -2008,7 +2036,7 @@ function drawTopBar(
     const textWidth = scoreWidths[idx];
 
     // Draw player name and score with larger, more prominent font
-    ctx.fillStyle = ps.isHuman ? "#8bd4a1" : "rgba(245,241,230,0.9)";
+    ctx.fillStyle = ps.isHuman ? UI_TOKENS.colors.successMuted : UI_TOKENS.colors.textPrimary;
     ctx.font = ps.isHuman ? "700 16px 'Cinzel', serif" : "600 16px 'Cinzel', serif";
     ctx.textAlign = "left";
     ctx.fillText(scoreText, scoreX, playerScoresY);
@@ -2019,6 +2047,7 @@ function drawTopBar(
   const trophyStripX = earthBarEnd;
   const trophyStripW = buttonAreaStart - trophyStripX - 8;
   if (trophyStripW > 220) {
+    drawUiIcon(ctx, "iconTrophy", trophyStripX + 4, y + 40, 14, 0.9);
     drawTopBarTrophyStrip(ctx, state, regions, hoveredId, trophyStripX, y + 40, trophyStripW);
   }
 
@@ -2037,6 +2066,7 @@ function drawTopBar(
 
   if (human) {
     const chalTP = state.challenge?.challengeTPByPlayer?.[human.id] ?? 0;
+    drawUiIcon(ctx, "iconTp", barX + 84, y + h - 22, 12, 0.9);
     ctx.fillText(`Challenge TP: ${Math.floor(chalTP)}`, barX + 100, y + h - 10);
     const shopLabel = state.ui.shopOpen ? "Shop: ON" : "Shop";
     drawButton(ctx, regions, "toggle-shop", shopX, menuY, shopW, 34, shopLabel, () => {
@@ -2048,7 +2078,8 @@ function drawTopBar(
   const phaseX = barX + barW + 16;
   const phaseMaxW = Math.max(0, devX - 12 - phaseX);
   if (phaseMaxW > 80) {
-    ctx.fillStyle = "rgba(245,241,230,0.7)";
+    drawUiIcon(ctx, "iconMenu", phaseX - 16, y + h - 22, 12, 0.8);
+    ctx.fillStyle = UI_TOKENS.colors.textSecondary;
     ctx.font = "11px 'Source Serif 4', serif";
     ctx.textAlign = "left";
     ctx.fillText(`Phase: ${clampToWidth(ctx, phaseText, phaseMaxW)}`, phaseX, y + h - 10);
@@ -4039,13 +4070,14 @@ function drawChallengeOverlay(
         ? "Not your beat or already folded."
         : `You are ${apGap} AP behind the current lead.`;
 
-    drawPanel(ctx, beat1X, beat1Y, beatW, beatH, "rgba(18,24,34,0.92)", "#4c5d78");
-    ctx.fillStyle = "#f5f1e6";
+    drawPanel(ctx, beat1X, beat1Y, beatW, beatH, UI_TOKENS.colors.panelFillElevated, UI_TOKENS.colors.panelStroke);
+    drawUiIcon(ctx, "iconDice", beat1X + 8, beat1Y + 6, 12, 0.92);
+    ctx.fillStyle = UI_TOKENS.colors.textPrimary;
     ctx.font = "700 11px 'Cinzel', serif";
     ctx.textAlign = "left";
-    ctx.fillText("1) THREAT", beat1X + 8, beat1Y + 16);
+    ctx.fillText("1) THREAT", beat1X + 24, beat1Y + 16);
     ctx.font = "11px 'Source Serif 4', serif";
-    ctx.fillStyle = "rgba(245,241,230,0.86)";
+    ctx.fillStyle = UI_TOKENS.colors.textSecondary;
     const threatLine = `${phaseLabel} • ${activeName} (${Math.max(1, activeIndex + 1)}/${Math.max(1, order.length)})`;
     ctx.fillText(clampToWidth(ctx, threatLine, beatW - 16), beat1X + 8, beat1Y + 34);
     ctx.fillText(
@@ -4054,23 +4086,25 @@ function drawChallengeOverlay(
       beat1Y + 50
     );
 
-    drawPanel(ctx, beat2X, beat2Y, beatW, beatH, "rgba(18,24,34,0.92)", "#4c5d78");
-    ctx.fillStyle = "#f5f1e6";
+    drawPanel(ctx, beat2X, beat2Y, beatW, beatH, UI_TOKENS.colors.panelFillElevated, UI_TOKENS.colors.panelStroke);
+    drawUiIcon(ctx, "iconAp", beat2X + 8, beat2Y + 6, 12, 0.92);
+    ctx.fillStyle = UI_TOKENS.colors.textPrimary;
     ctx.font = "700 11px 'Cinzel', serif";
-    ctx.fillText("2) READINESS", beat2X + 8, beat2Y + 16);
-    ctx.fillStyle = readinessPass ? "#8bd4a1" : "#f2b37c";
+    ctx.fillText("2) READINESS", beat2X + 24, beat2Y + 16);
+    ctx.fillStyle = readinessPass ? UI_TOKENS.colors.successMuted : UI_TOKENS.colors.dangerMuted;
     ctx.font = "700 12px 'Cinzel', serif";
     ctx.fillText(readinessPass ? "PASS BASELINE" : "BELOW BASELINE", beat2X + 8, beat2Y + 34);
-    ctx.fillStyle = "rgba(245,241,230,0.82)";
+    ctx.fillStyle = UI_TOKENS.colors.textSecondary;
     ctx.font = "11px 'Source Serif 4', serif";
     wrapText(ctx, readinessText, beatW - 16).slice(0, 2).forEach((line, idx) => {
       ctx.fillText(line, beat2X + 8, beat2Y + 50 + idx * 13);
     });
 
-    drawPanel(ctx, beat3X, beat3Y, beatW, beatH, "rgba(18,24,34,0.92)", "#4c5d78");
-    ctx.fillStyle = "#f5f1e6";
+    drawPanel(ctx, beat3X, beat3Y, beatW, beatH, UI_TOKENS.colors.panelFillElevated, UI_TOKENS.colors.panelStroke);
+    drawUiIcon(ctx, "iconShop", beat3X + 8, beat3Y + 6, 12, 0.92);
+    ctx.fillStyle = UI_TOKENS.colors.textPrimary;
     ctx.font = "700 11px 'Cinzel', serif";
-    ctx.fillText("3) CHOICES", beat3X + 8, beat3Y + 16);
+    ctx.fillText("3) CHOICES", beat3X + 24, beat3Y + 16);
     const btnW = beatW - 16;
     const btnH = mobile ? 20 : 22;
     const btnStep = btnH + 4;
@@ -5637,6 +5671,8 @@ function drawParticles(ctx: CanvasRenderingContext2D): void {
 
 function drawFxPulses(ctx: CanvasRenderingContext2D): void {
   const now = performance.now();
+  const glowOverlay = getArtImage("vfxGlowPulse");
+  const rippleOverlay = getArtImage("vfxRippleRing");
   for (let i = fxPulses.length - 1; i >= 0; i -= 1) {
     const pulse = fxPulses[i];
     const t = (now - pulse.start) / pulse.duration;
@@ -5657,6 +5693,17 @@ function drawFxPulses(ctx: CanvasRenderingContext2D): void {
     ctx.beginPath();
     ctx.arc(pulse.x, pulse.y, radius, 0, Math.PI * 2);
     ctx.fill();
+
+    if (glowOverlay) {
+      const overlaySize = radius * 1.9;
+      ctx.globalAlpha = Math.min(0.38, alpha * 1.6);
+      ctx.drawImage(glowOverlay, pulse.x - overlaySize / 2, pulse.y - overlaySize / 2, overlaySize, overlaySize);
+    }
+    if (rippleOverlay) {
+      const overlaySize = radius * 1.55;
+      ctx.globalAlpha = Math.min(0.28, alpha * 1.3);
+      ctx.drawImage(rippleOverlay, pulse.x - overlaySize / 2, pulse.y - overlaySize / 2, overlaySize, overlaySize);
+    }
 
     if (pulse.label && t < 0.6) {
       ctx.globalCompositeOperation = "source-over";

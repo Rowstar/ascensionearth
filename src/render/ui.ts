@@ -2,6 +2,7 @@ import { HitRegion } from "./canvas";
 import { ArtifactData, GameCardData, TeachingData } from "../engine/types";
 import { dataStore } from "../engine/state";
 import { calculateTeachingPower } from "../engine/rules";
+import { getArtImage, UI_TOKENS, withTokenAlpha } from "./artSystem";
 
 const noiseCanvas = document.createElement("canvas");
 noiseCanvas.width = 64;
@@ -46,12 +47,29 @@ export function drawPanel(
   fill: string,
   border: string
 ): void {
-  drawRoundedRect(ctx, x, y, w, h, 14);
+  drawRoundedRect(ctx, x, y, w, h, UI_TOKENS.radii.medium);
   ctx.fillStyle = fill;
   ctx.fill();
   ctx.strokeStyle = border;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = UI_TOKENS.strokes.primary;
   ctx.stroke();
+
+  // Soft inner shadow for depth without heavy contrast.
+  const innerShadow = UI_TOKENS.shadows.panelInner;
+  ctx.save();
+  drawRoundedRect(ctx, x, y, w, h, UI_TOKENS.radii.medium);
+  ctx.clip();
+  const topShade = ctx.createLinearGradient(x, y, x, y + h);
+  topShade.addColorStop(0, withTokenAlpha(UI_TOKENS.colors.neutralInk, 0.2));
+  topShade.addColorStop(0.28, withTokenAlpha(UI_TOKENS.colors.neutralInk, 0.08));
+  topShade.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = topShade;
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = innerShadow.color;
+  ctx.lineWidth = UI_TOKENS.strokes.secondary;
+  drawRoundedRect(ctx, x + 1, y + 1, w - 2, h - 2, UI_TOKENS.radii.medium - 1);
+  ctx.stroke();
+  ctx.restore();
 }
 
 // Per-button hover progress for smooth transitions (0 = idle, 1 = fully hovered)
@@ -99,22 +117,48 @@ export function drawButton(
   }
   buttonHoverProgress.set(id, t);
 
-  const gradient = ctx.createLinearGradient(x, y, x + w, y + h);
-  gradient.addColorStop(0, lerpColor("#d6b45c", "#f0d88c", t));
-  gradient.addColorStop(1, lerpColor("#a05b22", "#c47d2c", t));
-  drawRoundedRect(ctx, x, y, w, h, 12);
+  const hoverLift = hovered ? UI_TOKENS.motion.hoverLiftPx : 0;
+  const drawY = y - hoverLift;
+  const gradient = ctx.createLinearGradient(x, drawY, x + w, drawY + h);
+  gradient.addColorStop(0, lerpColor(UI_TOKENS.colors.goldTrimSoft, UI_TOKENS.colors.goldTrim, t));
+  gradient.addColorStop(1, lerpColor("#855124", "#b47935", t));
+  drawRoundedRect(ctx, x, drawY, w, h, UI_TOKENS.radii.medium);
   ctx.fillStyle = gradient;
   ctx.fill();
+
+  // Specular highlight pass on the top third.
+  const highlight = ctx.createLinearGradient(x, drawY, x, drawY + h * 0.55);
+  highlight.addColorStop(0, "rgba(255,248,225,0.38)");
+  highlight.addColorStop(1, "rgba(255,248,225,0)");
+  ctx.fillStyle = highlight;
+  drawRoundedRect(ctx, x + 1, drawY + 1, w - 2, h - 2, UI_TOKENS.radii.medium - 1);
+  ctx.fill();
+
+  // Sheen sweep (disabled when motion is reduced/disabled).
+  if (uiMotionEnabled && hovered) {
+    const sheen = getArtImage("vfxSheenSweep");
+    if (sheen) {
+      const sweepT = (performance.now() % UI_TOKENS.motion.sheenSweepMs) / UI_TOKENS.motion.sheenSweepMs;
+      const sweepX = x - w + sweepT * (w * 2.2);
+      ctx.save();
+      drawRoundedRect(ctx, x, drawY, w, h, UI_TOKENS.radii.medium);
+      ctx.clip();
+      ctx.globalAlpha = 0.14;
+      ctx.drawImage(sheen, sweepX, drawY - h * 0.65, w, h * 2.3);
+      ctx.restore();
+    }
+  }
+
   ctx.strokeStyle = lerpColor("#6d3d16", "#fff2c0", t);
-  ctx.lineWidth = 2;
+  ctx.lineWidth = UI_TOKENS.borders.button;
   ctx.stroke();
   ctx.fillStyle = "#1b120a";
   ctx.font = "600 16px 'Cinzel', serif";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(label, x + w / 2, y + h / 2);
+  ctx.fillText(label, x + w / 2, drawY + h / 2);
 
-  regions.push({ id, x, y, w, h, onClick, cursor: "pointer" });
+  regions.push({ id, x, y: drawY, w, h, onClick, cursor: "pointer" });
 }
 
 export function drawCardFrame(
@@ -124,12 +168,13 @@ export function drawCardFrame(
   w: number,
   h: number,
   palette: { top: string; bottom: string; stroke: string },
-  hovered: boolean
+  hovered: boolean,
+  frameKind: "basic" | "rare" | "mythic" = "basic"
 ): void {
   const gradient = ctx.createLinearGradient(x, y, x, y + h);
   gradient.addColorStop(0, palette.top);
   gradient.addColorStop(1, palette.bottom);
-  drawRoundedRect(ctx, x, y, w, h, 12);
+  drawRoundedRect(ctx, x, y, w, h, UI_TOKENS.radii.medium);
   ctx.fillStyle = gradient;
   ctx.fill();
   if (noiseCtx) {
@@ -139,8 +184,20 @@ export function drawCardFrame(
     ctx.restore();
   }
   ctx.strokeStyle = palette.stroke;
-  ctx.lineWidth = hovered ? 3 : 2;
+  ctx.lineWidth = hovered ? UI_TOKENS.strokes.primary + 1 : UI_TOKENS.strokes.primary;
   ctx.stroke();
+
+  const frameImage = frameKind === "mythic"
+    ? getArtImage("frameMythic")
+    : frameKind === "rare"
+      ? getArtImage("frameRare")
+      : getArtImage("frameBasic");
+  if (frameImage) {
+    ctx.save();
+    ctx.globalAlpha = frameKind === "mythic" ? 0.78 : frameKind === "rare" ? 0.72 : 0.66;
+    ctx.drawImage(frameImage, x, y, w, h);
+    ctx.restore();
+  }
 }
 
 export function cardPalette(type: "game" | "spell" | "artifact" | "teaching" | "cosmic"): {
@@ -359,7 +416,13 @@ export function drawCard(
 ): void {
   const palette = gameCardPalette(card);
   const lift = hovered ? -6 : 0;
-  drawCardFrame(ctx, x, y + lift, w, h, palette, hovered);
+  const frameKind: "basic" | "rare" | "mythic" =
+    (card.category === "cosmic" || card.tags.includes("Cosmic"))
+      ? "mythic"
+      : card.color === "Gold"
+        ? "rare"
+        : "basic";
+  drawCardFrame(ctx, x, y + lift, w, h, palette, hovered, frameKind);
   ctx.save();
   const isCosmic = card.category === "cosmic" || card.tags.includes("Cosmic");
   const isGold = card.color === "Gold";
@@ -749,7 +812,7 @@ export function drawArtifactMiniCard(
 ): void {
   const palette = cardPalette("artifact");
   const lift = hovered ? -4 : 0;
-  drawCardFrame(ctx, x, y + lift, w, h, palette, hovered);
+  drawCardFrame(ctx, x, y + lift, w, h, palette, hovered, "rare");
 
   const artX = x + 6;
   const artY = y + 22 + lift;
