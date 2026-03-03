@@ -15,6 +15,7 @@ import {
 } from "./types";
 import { dataStore } from "./state";
 import { applyEffectHandler, triggerEffects } from "./effects";
+import { emitSfxEvent } from "./sfxEvents";
 
 const CRYSTAL_VALUE = 5;
 export const SHOP_CARD_COST = 2; // tunable
@@ -232,6 +233,12 @@ export function addChallengeTP(
       thresholds[check.key] = true;
       grantTeachingOfTier(state, player, rng, check.tier, "TP Threshold");
       state.log.push(`TP THRESHOLD: ${player.name} reaches ${Math.floor(next)} TP — gains a ${check.tier} Teaching!`);
+      emitSfxEvent(state, "TP_THRESHOLD_REACHED", {
+        playerId: player.id,
+        tier: check.tier,
+        threshold: check.threshold,
+        totalTp: Math.floor(next)
+      });
       if (state.challenge?.logEntries) {
         state.challenge.logEntries.push(`${player.name} reaches ${Math.floor(next)} TP — ${check.tier} Teaching!`);
       }
@@ -1925,11 +1932,13 @@ function updateGuardianKeystones(
     caveTrack.crystalTier1Claimed = true;
     state.log.push(`Cave Keystone: Whisper milestone reached! +3 Crystals`);
     logChallenge(state, challenge, "Cave Keystone: Whisper milestone reached! +3 Crystals");
+    emitSfxEvent(state, "KEYSTONE_MILESTONE", { track: "cave", milestone: "crystal_tier_1" });
     keystoneReward = { type: "cave", reward: "+3 Crystals (Whisper)" };
   }
   if (!caveTrack.rareUnlocked && caveTrack.progress >= CAVE_RARE_THRESHOLD) {
     grantSpecificTeaching(state, human, rng, "lantern_of_the_unseen", "Cave Keystone");
     caveTrack.rareUnlocked = true;
+    emitSfxEvent(state, "KEYSTONE_MILESTONE", { track: "cave", milestone: "rare_unlock" });
     keystoneReward = { type: "cave", reward: "Lantern of the Unseen (Rare)" };
   }
   if (!caveTrack.crystalTier2Claimed && caveTrack.progress >= CAVE_CRYSTAL_TIER_2) {
@@ -1937,11 +1946,13 @@ function updateGuardianKeystones(
     caveTrack.crystalTier2Claimed = true;
     state.log.push(`Cave Keystone: Resonance milestone reached! +8 Crystals`);
     logChallenge(state, challenge, "Cave Keystone: Resonance milestone reached! +8 Crystals");
+    emitSfxEvent(state, "KEYSTONE_MILESTONE", { track: "cave", milestone: "crystal_tier_2" });
     keystoneReward = { type: "cave", reward: "+8 Crystals (Resonance)" };
   }
   if (!caveTrack.mythicUnlocked && caveTrack.progress >= CAVE_MYTHIC_THRESHOLD) {
     grantSpecificTeaching(state, human, rng, "echoes_in_the_stone", "Cave Keystone");
     caveTrack.mythicUnlocked = true;
+    emitSfxEvent(state, "KEYSTONE_MILESTONE", { track: "cave", milestone: "mythic_unlock" });
     keystoneReward = { type: "cave", reward: "Echoes in the Stone (Mythic)" };
   }
 
@@ -1951,11 +1962,13 @@ function updateGuardianKeystones(
     mountainTrack.crystalTier1Claimed = true;
     state.log.push(`Mountain Keystone: Whisper milestone reached! +3 Crystals`);
     logChallenge(state, challenge, "Mountain Keystone: Whisper milestone reached! +3 Crystals");
+    emitSfxEvent(state, "KEYSTONE_MILESTONE", { track: "mountain", milestone: "crystal_tier_1" });
     keystoneReward = { type: "mountain", reward: "+3 Crystals (Whisper)" };
   }
   if (!mountainTrack.rareUnlocked && mountainTrack.progress >= MOUNTAIN_RARE_THRESHOLD) {
     grantSpecificTeaching(state, human, rng, "breath_of_the_summit", "Mountain Keystone");
     mountainTrack.rareUnlocked = true;
+    emitSfxEvent(state, "KEYSTONE_MILESTONE", { track: "mountain", milestone: "rare_unlock" });
     keystoneReward = { type: "mountain", reward: "Breath of the Summit (Rare)" };
   }
   if (!mountainTrack.crystalTier2Claimed && mountainTrack.progress >= MOUNTAIN_CRYSTAL_TIER_2) {
@@ -1963,11 +1976,13 @@ function updateGuardianKeystones(
     mountainTrack.crystalTier2Claimed = true;
     state.log.push(`Mountain Keystone: Resonance milestone reached! +8 Crystals`);
     logChallenge(state, challenge, "Mountain Keystone: Resonance milestone reached! +8 Crystals");
+    emitSfxEvent(state, "KEYSTONE_MILESTONE", { track: "mountain", milestone: "crystal_tier_2" });
     keystoneReward = { type: "mountain", reward: "+8 Crystals (Resonance)" };
   }
   if (!mountainTrack.mythicUnlocked && mountainTrack.progress >= MOUNTAIN_MYTHIC_THRESHOLD) {
     grantSpecificTeaching(state, human, rng, "crown_of_endurance", "Mountain Keystone");
     mountainTrack.mythicUnlocked = true;
+    emitSfxEvent(state, "KEYSTONE_MILESTONE", { track: "mountain", milestone: "mythic_unlock" });
     keystoneReward = { type: "mountain", reward: "Crown of Endurance (Mythic)" };
   }
 

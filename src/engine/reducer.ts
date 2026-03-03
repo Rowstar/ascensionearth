@@ -50,8 +50,8 @@ import {
 import { resolveThirdEyeSelection, triggerEffects } from "./effects";
 import { scaledDelayMs } from "../utils/timing";
 import { nextGameSpeedMode } from "../utils/gameSpeed";
-import { playCardCommit, playChallengeComplete, playTeachingGained, playArtifactGained, playDeny } from "../render/sfx";
 import { saveGame } from "../utils/save";
+import { emitSfxEvent } from "./sfxEvents";
 import {
   decideAiAction,
   chooseSpellToPlay,
@@ -91,15 +91,32 @@ function withRewardSfx(state: GameState, fn: () => void): void {
   const preArtifacts = human ? human.artifacts.length : 0;
   fn();
   if (human) {
-    if (human.teachings.length + human.passiveTeachings.length > preTeachings) playTeachingGained();
-    if (human.artifacts.length > preArtifacts) playArtifactGained();
+    if (human.teachings.length + human.passiveTeachings.length > preTeachings) {
+      emitSfxEvent(state, "TEACHING_GAINED", { playerId: human.id });
+    }
+    if (human.artifacts.length > preArtifacts) {
+      emitSfxEvent(state, "ARTIFACT_GAINED", { playerId: human.id });
+    }
   }
 }
 
 /** Wrapper: resolves challenge and plays appropriate sounds for the human player. */
 function resolveChallengeWithSfx(state: GameState, rng: Rng): void {
   withRewardSfx(state, () => resolveChallenge(state, rng));
-  playChallengeComplete();
+  emitSfxEvent(state, "CHALLENGE_COMPLETE", { challengeId: state.challenge?.id });
+  const human = state.players.find((p) => !p.isAI);
+  const result = state.ui.challengeResult;
+  if (human && result) {
+    const humanResult = result.participants.find((participant) => participant.playerId === human.id);
+    if (humanResult) {
+      emitSfxEvent(state, "CHALLENGE_OUTCOME", {
+        challengeId: result.id,
+        playerId: human.id,
+        withdrew: !!humanResult.withdrew,
+        totalPower: humanResult.totalPower
+      });
+    }
+  }
 }
 
 function hasDoctrineOfAbundance(player: PlayerState): boolean {
@@ -182,15 +199,33 @@ export class GameStore {
         mountain: { progress: 0, rareUnlocked: false, mythicUnlocked: false, crystalTier1Claimed: false, crystalTier2Claimed: false }
       },
       lastTurnStartGains: {},
-      previousTurnRewards: {}
+      previousTurnRewards: {},
+      sfxEvents: [],
+      sfxSeq: 0
     };
     this.rng = new Rng(this.state.seed);
     this.state.rngState = this.rng.snapshot();
   }
 
   dispatch(action: GameAction): void {
+    const priorHuman = this.state.players.find((p) => !p.isAI);
+    const priorHumanId = priorHuman?.id;
+    const priorCrystals = priorHuman?.crystals ?? 0;
     const next = this.reduce(this.state, action);
     const withAscension = this.applyEarthAscension(next);
+    withAscension.sfxEvents = withAscension.sfxEvents ?? [];
+    withAscension.sfxSeq = withAscension.sfxSeq ?? 0;
+    if (priorHumanId && action.type !== "LOAD_GAME") {
+      const postHuman = withAscension.players.find((p) => p.id === priorHumanId);
+      if (postHuman) {
+        const delta = postHuman.crystals - priorCrystals;
+        if (delta > 0) {
+          emitSfxEvent(withAscension, "CRYSTALS_GAINED", { playerId: priorHumanId, amount: delta });
+        } else if (delta < 0) {
+          emitSfxEvent(withAscension, "CRYSTALS_SPENT", { playerId: priorHumanId, amount: Math.abs(delta) });
+        }
+      }
+    }
     withAscension.rngState = this.rng.snapshot();
     trimLogs(withAscension);
     this.state = withAscension;
@@ -207,6 +242,7 @@ export class GameStore {
     if (!state.ascensionCapReachedAnnounced) {
       state.log.push("Earth Ascension reaches its target.");
       state.ascensionCapReachedAnnounced = true;
+      emitSfxEvent(state, "ASCENSION_TARGET_REACHED", { target: state.earthAscensionTarget });
     }
     if (state.phase === "GAME_OVER" || state.phase === "EVALUATION") {
       return state;
@@ -400,6 +436,11 @@ export class GameStore {
           state.log.push(
             `${winner.name} claims Trophy: ${aiChoice.name} (+${reward.grantedAp} AP).${passive}`
           );
+          emitSfxEvent(state, "TROPHY_AWARDED", {
+            playerId: winner.id,
+            trophyId: aiChoice.id,
+            ap: reward.grantedAp
+          });
         } else {
           review.resolved = true;
         }
@@ -594,17 +635,17 @@ export class GameStore {
         next.log.push(`Menu mouse parallax ${next.ui.menuMouseParallaxEnabled ? "enabled" : "disabled"}.`);
         return next;
       case "UI_TOGGLE_FOCUS_DRAWER":
-        if (next.phase === "ACTION_SELECT") {
+        if (next.phase === "ACTION_SELECT" || next.phase === "CHALLENGE") {
           next.ui.focusDrawerOpen = !(next.ui.focusDrawerOpen ?? false);
-          if (!next.ui.focusDrawerOpen) {
+          if (!next.ui.focusDrawerOpen && next.phase === "ACTION_SELECT") {
             next.ui.pendingSell = undefined;
           }
         }
         return next;
       case "UI_SET_FOCUS_DRAWER_OPEN":
-        if (next.phase === "ACTION_SELECT") {
+        if (next.phase === "ACTION_SELECT" || next.phase === "CHALLENGE") {
           next.ui.focusDrawerOpen = action.value;
-          if (!action.value) {
+          if (!action.value && next.phase === "ACTION_SELECT") {
             next.ui.pendingSell = undefined;
           }
         }
@@ -713,6 +754,7 @@ export class GameStore {
         if (challenge.initiativePaused) {
           challenge.initiativePaused = false;
           addChallengeLog(next, "Commit turns begin.");
+          emitSfxEvent(next, "CHALLENGE_PHASE", { phase: "COMMIT_TURNS", challengeId: challenge.id });
         }
         return next;
       }
@@ -826,6 +868,11 @@ export class GameStore {
         next.log.push(
           `${winner.name} claims Trophy: ${choice.name} (+${reward.grantedAp} AP).${passive}`
         );
+        emitSfxEvent(next, "TROPHY_AWARDED", {
+          playerId: winner.id,
+          trophyId: choice.id,
+          ap: reward.grantedAp
+        });
         return next;
       }
       case "UI_CLOSE_PROGRESS_REVIEW": {
@@ -871,6 +918,11 @@ export class GameStore {
         reward.isClaimed = true;
         reward.claimedByPlayerId = human.id;
         addChallengeLog(next, `${human.name} claims ${rewardDisplayLabel(reward)}.`);
+        emitSfxEvent(next, "CHALLENGE_REWARD_CLAIM", {
+          challengeId: challenge.id,
+          playerId: human.id,
+          rewardKind: reward.kind
+        });
 
         const remaining = unlockedUnclaimedRewards(challenge);
         if (remaining.length === 0 || !challenge.draft || challenge.draft.pickOrderPlayerIds.length === 0) {
@@ -924,7 +976,7 @@ export class GameStore {
         if (!t) return next;
         if (t.tier === "basic") {
           next.log.push(`${human.name} cannot sell Basic Teachings.`);
-          playDeny();
+          emitSfxEvent(next, "DENY");
           return next;
         }
         // Locked economy: sellable items are 1 Crystal (Artifacts are 2).
@@ -950,6 +1002,7 @@ export class GameStore {
         } else {
           sellTeaching(human, p.index, next);
         }
+        emitSfxEvent(next, "ITEM_SOLD", { playerId: human.id, kind: p.kind, crystals: p.crystals });
         return next;
       }
       case "DEV_GRANT_ARTIFACT": {
@@ -997,7 +1050,7 @@ export class GameStore {
         const costCrystals = SHOP_CARD_COST;
         if (!canAffordCrystals(human, costCrystals)) {
           next.log.push(`${human.name} cannot afford a Game Card (cost ${formatCrystals(costCrystals)} Crystals).`);
-          playDeny();
+          emitSfxEvent(next, "DENY");
           return next;
         }
         const cardIdx = next.shopOfferings.cards.indexOf(action.cardId);
@@ -1011,6 +1064,7 @@ export class GameStore {
         registerShopPurchase(human, "CARD");
         const cardName = dataStore.cardsById[action.cardId]?.name ?? "Game Card";
         next.log.push(`${human.name} bought ${cardName} for ${formatCrystals(costCrystals)} Crystals.`);
+        emitSfxEvent(next, "SHOP_PURCHASE", { playerId: human.id, kind: "CARD", cardId: action.cardId });
         return next;
       }
       case "BUY_SHOP_SPELL": {
@@ -1025,7 +1079,7 @@ export class GameStore {
         const costCrystals = SHOP_INVOCATION_COST;
         if (!canAffordCrystals(human, costCrystals)) {
           next.log.push(`${human.name} cannot afford an Invocation (cost ${formatCrystals(costCrystals)} Crystals).`);
-          playDeny();
+          emitSfxEvent(next, "DENY");
           return next;
         }
         if (!hasFreeInvocationSlot(human)) {
@@ -1047,6 +1101,7 @@ export class GameStore {
         registerShopPurchase(human, "SPELL");
         const spellName = dataStore.spellsById[action.spellId]?.name ?? "Invocation";
         next.log.push(`${human.name} bought ${spellName} for ${formatCrystals(costCrystals)} Crystals.`);
+        emitSfxEvent(next, "SHOP_PURCHASE", { playerId: human.id, kind: "SPELL", spellId: action.spellId });
         return next;
       }
       case "CONFIRM_ACTION": {
@@ -1298,7 +1353,7 @@ if (groups.EARTH.length > 0) {
         if (committedCount >= CHALLENGE_COMMIT_MAX && (next.ui.selectedCards[0] !== undefined || next.ui.pendingSpellId)) {
           next.log.push(`Max ${CHALLENGE_COMMIT_MAX} commits per challenge.`);
           addChallengeLog(next, `${human.name} cannot commit more (max ${CHALLENGE_COMMIT_MAX}).`);
-          playDeny();
+          emitSfxEvent(next, "DENY");
           return next;
         }
         const selectedIdx = next.ui.selectedCards[0];
@@ -1306,7 +1361,7 @@ if (groups.EARTH.length > 0) {
 
         if (selectedIdx !== undefined && pendingSpellId) {
           next.log.push("Choose either a Card OR an Invocation (one per beat).");
-          playDeny();
+          emitSfxEvent(next, "DENY");
           return next;
         }
 
@@ -1393,7 +1448,7 @@ if (groups.EARTH.length > 0) {
 
         if (acted) {
           challenge.passesInRow = 0;
-          playCardCommit();
+          emitSfxEvent(next, "CHALLENGE_COMMIT", { playerId: human.id });
         } else {
           challenge.passesInRow = (challenge.passesInRow ?? 0) + 1;
           addChallengeLog(next, `${human.name} passes.`);
@@ -1419,6 +1474,7 @@ if (groups.EARTH.length > 0) {
           next.ui.challengeFlashText = "REVEAL";
           next.ui.challengeFlashTimerMs = scaledChallengeDelay(next, 600);
           addChallengeLog(next, "Reveal begins." );
+          emitSfxEvent(next, "CHALLENGE_PHASE", { phase: "REVEAL", challengeId: challenge.id });
         }
         return next;
       }
@@ -1597,6 +1653,7 @@ function beginGuardianDraft(state: GameState, rng: Rng, challenge: ChallengeStat
     currentPickIndex: 0
   };
   addChallengeLog(state, "Guardian: The draft begins.");
+  emitSfxEvent(state, "CHALLENGE_PHASE", { phase: "DRAFT", challengeId: challenge.id });
 }
 
 function showTurnToast(state: GameState, player: PlayerState): void {
@@ -1664,6 +1721,7 @@ function executeAiAction(state: GameState, rng: Rng, action: AiQueuedActionInput
       registerShopPurchase(player, "CARD");
       const aiCardName = dataStore.cardsById[cardId]?.name ?? "Game Card";
       state.log.push(`${player.name} bought ${aiCardName} for ${formatCrystals(costCrystals)} Crystals.`);
+      emitSfxEvent(state, "SHOP_PURCHASE", { playerId: player.id, kind: "CARD", cardId });
       return;
     }
     case "AI_SHOP_BUY_SPELL": {
@@ -1686,6 +1744,7 @@ function executeAiAction(state: GameState, rng: Rng, action: AiQueuedActionInput
       registerShopPurchase(player, "SPELL");
       const aiSpellName = dataStore.spellsById[spellId]?.name ?? "Invocation";
       state.log.push(`${player.name} bought ${aiSpellName} for ${formatCrystals(costCrystals)} Crystals.`);
+      emitSfxEvent(state, "SHOP_PURCHASE", { playerId: player.id, kind: "SPELL", spellId });
       return;
     }
     case "AI_SELECT_ACTION": {
@@ -1734,6 +1793,7 @@ function executeAiAction(state: GameState, rng: Rng, action: AiQueuedActionInput
         state.ui.challengeFlashText = "REVEAL";
         state.ui.challengeFlashTimerMs = scaledChallengeDelay(state, 600);
         addChallengeLog(state, "Reveal begins.");
+        emitSfxEvent(state, "CHALLENGE_PHASE", { phase: "REVEAL", challengeId: challenge.id });
         // Disable auto-play when challenge ends
         if (state.ui.challengeAutoPlay) {
           state.ui.challengeAutoPlay = false;
@@ -1912,6 +1972,7 @@ function commitAiTurn(state: GameState, rng: Rng, playerId: string): void {
 
   if (acted) {
     challenge.passesInRow = 0;
+    emitSfxEvent(state, "CHALLENGE_COMMIT", { playerId: player.id });
   } else {
     challenge.passesInRow = (challenge.passesInRow ?? 0) + 1;
     addChallengeLog(state, `${player.name} passes.`);
@@ -2002,6 +2063,7 @@ function commitHumanAutoTurn(state: GameState, rng: Rng, playerId: string): void
 
   if (acted) {
     challenge.passesInRow = 0;
+    emitSfxEvent(state, "CHALLENGE_COMMIT", { playerId: player.id });
   } else {
     challenge.passesInRow = (challenge.passesInRow ?? 0) + 1;
     addChallengeLog(state, `${player.name} passes.`);
@@ -2079,6 +2141,7 @@ function fastForwardChallenge(state: GameState, rng: Rng): void {
         state.ui.challengeFlashText = "REVEAL";
         state.ui.challengeFlashTimerMs = 0;
         addChallengeLog(state, "Reveal begins.");
+        emitSfxEvent(state, "CHALLENGE_PHASE", { phase: "REVEAL", challengeId: challenge.id });
         break;
       }
       order = challenge.turnOrder.length > 0 ? challenge.turnOrder : challenge.order;
@@ -2103,6 +2166,7 @@ function fastForwardChallenge(state: GameState, rng: Rng): void {
     challenge.resolvedTotals = challenge.resolvedTotals ?? {};
     challenge.phaseTimerMs = 0;
     addChallengeLog(state, "Resolve begins.");
+    emitSfxEvent(state, "CHALLENGE_PHASE", { phase: "RESOLVE", challengeId: challenge.id });
   }
 
   if (challenge.phase === "RESOLVE") {
@@ -2148,6 +2212,11 @@ function fastForwardChallenge(state: GameState, rng: Rng): void {
       reward.claimedByPlayerId = pickerId;
       const pickerName = state.players.find((p) => p.id === pickerId)?.name ?? pickerId;
       addChallengeLog(state, `${pickerName} claims ${rewardDisplayLabel(reward)}.`);
+      emitSfxEvent(state, "CHALLENGE_REWARD_CLAIM", {
+        challengeId: challenge.id,
+        playerId: pickerId,
+        rewardKind: reward.kind
+      });
       if (unlockedUnclaimedRewards(challenge).length === 0) {
         addChallengeLog(state, "Draft concludes.");
         resolveChallengeWithSfx(state, rng);
@@ -2216,6 +2285,7 @@ function tickChallengeFlow(state: GameState, rng: Rng, dt: number): void {
         addChallengeLog(state, "Initiative locked. Press RESUME to begin commit turns.");
       } else {
         addChallengeLog(state, "Commit turns begin.");
+        emitSfxEvent(state, "CHALLENGE_PHASE", { phase: "COMMIT_TURNS", challengeId: challenge.id });
       }
       return;
     }
@@ -2289,6 +2359,7 @@ function tickChallengeFlow(state: GameState, rng: Rng, dt: number): void {
     challenge.resolvedTotals = {};
     challenge.phaseTimerMs = scaledChallengeDelay(state, 600);
     addChallengeLog(state, "Resolve begins.");
+    emitSfxEvent(state, "CHALLENGE_PHASE", { phase: "RESOLVE", challengeId: challenge.id });
     return;
   }
 
@@ -2335,6 +2406,11 @@ function tickChallengeFlow(state: GameState, rng: Rng, dt: number): void {
       reward.isClaimed = true;
       reward.claimedByPlayerId = picker.id;
       addChallengeLog(state, `${picker.name} claims ${rewardDisplayLabel(reward)}.`);
+      emitSfxEvent(state, "CHALLENGE_REWARD_CLAIM", {
+        challengeId: challenge.id,
+        playerId: picker.id,
+        rewardKind: reward.kind
+      });
       if (unlockedUnclaimedRewards(challenge).length === 0) {
         addChallengeLog(state, "Draft concludes.");
         resolveChallengeWithSfx(state, rng);

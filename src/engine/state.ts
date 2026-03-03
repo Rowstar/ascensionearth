@@ -403,7 +403,9 @@ export function createNewGame(seed: string): GameState {
     aiActive: undefined,
     aiPendingReveal: false,
     reviewHistory: [],
-    trophyCooldowns: {}
+    trophyCooldowns: {},
+    sfxEvents: [],
+    sfxSeq: 0
   };
 
   return state;
