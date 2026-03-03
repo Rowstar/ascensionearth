@@ -266,6 +266,10 @@ export type Phase =
   | "TURN_END"
   | "GAME_OVER";
 
+export type UiFocusMode = "ACTION_SELECT" | "CHALLENGE" | "RESULTS" | "EARTH_CHAMBER";
+
+export type FocusDrawerTab = "INVENTORY" | "TEACHINGS" | "ARTIFACTS" | "LOG";
+
 export type ChallengePhase =
   | "SETUP"
   | "ROLL_ORDER"
@@ -529,6 +533,9 @@ export interface UiState {
   motionEnabled?: boolean;
   particleQuality?: ParticleQuality;
   menuMouseParallaxEnabled?: boolean;
+  focusDrawerOpen?: boolean;
+  focusDrawerTab?: FocusDrawerTab;
+  focusModeOverride?: UiFocusMode;
   devPanelTab?: "TEACHINGS" | "ARTIFACTS";
   devPanelScroll?: number;
   artifactScroll?: number;
@@ -658,6 +665,11 @@ export type GameAction =
   | { type: "TOGGLE_MOTION" }
   | { type: "CYCLE_PARTICLE_QUALITY" }
   | { type: "TOGGLE_MENU_MOUSE_PARALLAX" }
+  | { type: "UI_TOGGLE_FOCUS_DRAWER" }
+  | { type: "UI_SET_FOCUS_DRAWER_OPEN"; value: boolean }
+  | { type: "UI_SET_FOCUS_DRAWER_TAB"; tab: FocusDrawerTab }
+  | { type: "UI_SET_FOCUS_MODE_OVERRIDE"; mode?: UiFocusMode }
+  | { type: "UI_CYCLE_FOCUS_MODE_OVERRIDE" }
   | { type: "SET_GAME_SPEED"; mode: GameSpeedMode }
   | { type: "CYCLE_GAME_SPEED" }
   | {

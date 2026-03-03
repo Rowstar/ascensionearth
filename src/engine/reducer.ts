@@ -68,6 +68,7 @@ import {
   shouldAnnounceUpcomingReview
 } from "./progression";
 import { trimLogs } from "./logging";
+import { cycleFocusModeOverride } from "../utils/focusMode";
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
@@ -592,6 +593,31 @@ export class GameStore {
         next.ui.menuMouseParallaxEnabled = !(next.ui.menuMouseParallaxEnabled ?? true);
         next.log.push(`Menu mouse parallax ${next.ui.menuMouseParallaxEnabled ? "enabled" : "disabled"}.`);
         return next;
+      case "UI_TOGGLE_FOCUS_DRAWER":
+        if (next.phase === "ACTION_SELECT") {
+          next.ui.focusDrawerOpen = !(next.ui.focusDrawerOpen ?? false);
+          if (!next.ui.focusDrawerOpen) {
+            next.ui.pendingSell = undefined;
+          }
+        }
+        return next;
+      case "UI_SET_FOCUS_DRAWER_OPEN":
+        if (next.phase === "ACTION_SELECT") {
+          next.ui.focusDrawerOpen = action.value;
+          if (!action.value) {
+            next.ui.pendingSell = undefined;
+          }
+        }
+        return next;
+      case "UI_SET_FOCUS_DRAWER_TAB":
+        next.ui.focusDrawerTab = action.tab;
+        return next;
+      case "UI_SET_FOCUS_MODE_OVERRIDE":
+        next.ui.focusModeOverride = action.mode;
+        return next;
+      case "UI_CYCLE_FOCUS_MODE_OVERRIDE":
+        next.ui.focusModeOverride = cycleFocusModeOverride(next.ui.focusModeOverride);
+        return next;
       case "SET_GAME_SPEED":
         next.settings.gameSpeedMode = action.mode;
         next.log.push(`Game speed set to ${action.mode.toLowerCase()}.`);
@@ -739,6 +765,7 @@ export class GameStore {
           if (next.ui.shopOpen) {
             next.ui.shopTab = next.ui.shopTab ?? "CARDS";
             next.ui.earthShopOpen = false;
+            next.ui.focusDrawerOpen = true;
           } else {
             next.ui.pendingSell = undefined;
           }
@@ -750,6 +777,7 @@ export class GameStore {
           if (next.ui.earthShopOpen) {
             next.ui.shopOpen = false;
             next.ui.pendingSell = undefined;
+            next.ui.focusDrawerOpen = false;
           }
         }
         return next;
@@ -1032,6 +1060,7 @@ export class GameStore {
           human.locked = true;
           next.ui.shopOpen = false;
           next.ui.earthShopOpen = false;
+          next.ui.focusDrawerOpen = false;
           if (human.action === "EARTH") {
             human.earthTierChoice = next.ui.selectedEarthTier ?? 1;
           }
@@ -1158,6 +1187,7 @@ if (groups.EARTH.length > 0) {
 
         next.pendingChallenges = pending;
         clearSelections(next);
+        next.ui.focusDrawerOpen = false;
 
         if (next.pendingChallenges.length > 0) {
           const first = next.pendingChallenges.shift();
@@ -1468,6 +1498,7 @@ case "FOLD_CHALLENGE": {
           if (pending) {
             next.challenge = setupChallenge(next, this.rng, pending);
             next.phase = "CHALLENGE";
+            next.ui.focusDrawerOpen = false;
             next.ui.challengeLogScroll = 0;
             next.ui.challengeFlashText = "ROLL ORDER";
             next.ui.challengeFlashTimerMs = scaledChallengeDelay(next, 700);

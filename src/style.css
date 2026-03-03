@@ -36,6 +36,15 @@ body {
   height: 100vh;
 }
 
+#game-canvas:focus-visible {
+  outline: 2px solid rgba(143, 212, 161, 0.9);
+  outline-offset: -2px;
+}
+
+body[data-focus-mode="action_select"] {
+  --safe-bottom: 176px;
+}
+
 .matchLog {
   position: fixed;
   right: 18px;

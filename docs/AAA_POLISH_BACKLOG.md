@@ -8,7 +8,7 @@ Source: `docs/AUDIT_REPORT.md`
 | Task | Outcome | Owner |
 |---|---|---|
 | Add objective strip text per phase in `renderMatch` | Clear "what to do now" prompt every phase | Frontend |
-| Gate match particles/pulses by motion settings | Accessibility alignment and lower frame overhead | Frontend |
+| [DONE] Gate match particles/pulses by motion settings | Completed in ACTION_SELECT focus slice; reduced-motion now suppresses non-essential pulse/particle effects | Frontend |
 | Increase minimum small-body font usage in sidebars to 12 | Immediate readability uplift | Frontend |
 | Normalize panel header spacing and row padding using one token set | Cleaner alignment consistency | Frontend |
 | Add SFX hooks for confirm action and modal open/close | Better tactile UX feedback | Audio |
@@ -19,7 +19,7 @@ Source: `docs/AUDIT_REPORT.md`
 
 | Task | Outcome | Owner |
 |---|---|---|
-| Implement Phase Focus Mode for `ACTION_SELECT` only | Significant reduction in decision overload | Frontend UX |
+| [DONE] Implement Phase Focus Mode for `ACTION_SELECT` only | Completed: primary map flow + compact HUD + single secondary drawer + keyboard drawer controls | Frontend UX |
 | Implement log wrapping cache for Match Log | Lower per-frame CPU cost when log is open | Frontend Perf |
 | Implement log wrapping cache for Challenge Log | Lower per-frame CPU cost in challenge phases | Frontend Perf |
 | Refactor top-bar layout priority with truncation rules | Prevent overlap/clipping on narrow widths | Frontend UX |
@@ -89,4 +89,3 @@ Phase Focus Mode controls visual emphasis and interaction eligibility by phase/s
 | Mobile viability | Small-width layout still exposes one clear CTA. |
 | Accessibility | Motion-off mode disables non-essential animated emphasis. |
 | Visual consistency | Dim levels and glow tiers match token rules. |
-

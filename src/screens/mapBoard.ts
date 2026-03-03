@@ -454,11 +454,12 @@ export function renderMapBoard(
   hoveredId: string | undefined,
   dt: number,
   mapRect: { x: number; y: number; w: number; h: number },
-  hoverReady: boolean
+  hoverReady: boolean,
+  motionEnabled = true
 ): void {
   const { width } = ctx.canvas;
   const now = performance.now();
-  const t = now * 0.001;
+  const t = motionEnabled ? now * 0.001 : 0;
 
   // Check if hover left a map node - if so, stop the hover sound
   const wasHoveringMapNode = lastHoveredNodeId?.startsWith("map-") ?? false;
@@ -578,7 +579,7 @@ export function renderMapBoard(
         glow: baseStyle.glow,
         width: 2.8,
         highlight: true,
-        lightning: true,
+        lightning: motionEnabled,
         meander: 26,
         trimStart: 30,
         trimEnd: node.radius * 0.7,
@@ -602,7 +603,7 @@ export function renderMapBoard(
     }
 
     drawNode(ctx, node, node.x, node.y, t, hovered, selected, disabled);
-    if (highlightAction === node.id) {
+    if (highlightAction === node.id && motionEnabled) {
       drawLightningRing(ctx, node.x, node.y, node.radius + 8, t, 0.7);
     }
 

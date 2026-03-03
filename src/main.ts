@@ -7,10 +7,39 @@ import { renderMatch } from "./screens/match";
 import { loadPreferences, savePreferences } from "./utils/preferences";
 import { nextGameSpeedMode } from "./utils/gameSpeed";
 import { loadGame, hasSavedGame, deleteSave } from "./utils/save";
+import { deriveFocusMode, focusModeDataValue } from "./utils/focusMode";
 
 const canvas = document.getElementById("game-canvas") as HTMLCanvasElement;
+canvas.tabIndex = 0;
+canvas.setAttribute("aria-label", "Ascension Earth game canvas");
 const store = new GameStore();
 const app = new CanvasApp(canvas);
+const rootEl = document.body;
+
+const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+let prefersReducedMotion = reducedMotionQuery.matches;
+const updateReducedMotion = (event?: MediaQueryListEvent): void => {
+  prefersReducedMotion = event ? event.matches : reducedMotionQuery.matches;
+};
+if ("addEventListener" in reducedMotionQuery) {
+  reducedMotionQuery.addEventListener("change", updateReducedMotion);
+} else {
+  const legacyQuery = reducedMotionQuery as MediaQueryList & {
+    addListener?: (listener: (event: MediaQueryListEvent) => void) => void;
+  };
+  legacyQuery.addListener?.(updateReducedMotion);
+}
+
+function syncRootFocusAttrs(): void {
+  const state = store.state;
+  const mode = state.ui.screen === "MATCH" ? focusModeDataValue(deriveFocusMode(state)) : "menu";
+  rootEl.dataset.focusMode = mode;
+  rootEl.dataset.focusDrawerOpen = state.ui.focusDrawerOpen ? "true" : "false";
+  rootEl.dataset.prefersReducedMotion = prefersReducedMotion ? "true" : "false";
+  if (state.ui.screen === "MATCH" && state.ui.focusDrawerOpen && document.activeElement !== canvas) {
+    canvas.focus();
+  }
+}
 
 const prefs = loadPreferences();
 if (
@@ -58,6 +87,20 @@ window.addEventListener("keydown", (event) => {
     return;
   }
 
+  if (state.ui.screen === "MATCH" && state.ui.focusDrawerOpen) {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      store.dispatch({ type: "UI_SET_FOCUS_DRAWER_OPEN", value: false });
+      syncRootFocusAttrs();
+      return;
+    }
+    if (event.key === "Tab") {
+      // Keep keyboard focus trapped in the drawer interaction state.
+      event.preventDefault();
+      return;
+    }
+  }
+
   if (event.key === "F3") {
     event.preventDefault();
     showFps = !showFps;
@@ -101,6 +144,7 @@ app.start((ctx, dt) => {
   setSoundEnabled(state.ui.soundEnabled ?? true);
   setMusicEnabled(state.ui.musicEnabled ?? true);
   setMusicVolume((state.ui.musicVolume ?? 45) / 100);
+  syncRootFocusAttrs();
 
   // Trigger music when entering/exiting CHALLENGE
   if (prevPhase !== state.phase) {
@@ -212,7 +256,8 @@ app.start((ctx, dt) => {
     }
     store.dispatch({ type: "AI_TICK", dt });
     state = store.state;
-    renderMatch(ctx, state, regions, (action) => store.dispatch(action), app.hoveredId, dt);
+    syncRootFocusAttrs();
+    renderMatch(ctx, state, regions, (action) => store.dispatch(action), app.hoveredId, dt, prefersReducedMotion);
   }
   // FPS counter
   if (showFps) {

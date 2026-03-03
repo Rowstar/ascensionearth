@@ -1,4 +1,4 @@
-import { ActionChoice, ChallengeState, EarthAdvancementData, GameAction, GameCardData, GameState, ProgressReviewState, TeachingData, TeachingTier } from "../engine/types";
+import { ActionChoice, ChallengeState, EarthAdvancementData, FocusDrawerTab, GameAction, GameCardData, GameState, ProgressReviewState, TeachingData, TeachingTier, UiFocusMode } from "../engine/types";
 import {
   CAVE_MYTHIC_THRESHOLD,
   CAVE_RARE_THRESHOLD,
@@ -36,6 +36,7 @@ import { wrapText } from "../render/text";
 import { activateSound, playChime, playTurnStart, setMusicEnabled, setMusicVolume, setSoundEnabled } from "../render/sfx";
 import { savePreferences } from "../utils/preferences";
 import { gameSpeedLabel, nextGameSpeedMode } from "../utils/gameSpeed";
+import { deriveFocusMode, shortFocusModeLabel } from "../utils/focusMode";
 
 type Particle = {
   x: number;
@@ -105,11 +106,16 @@ let initiativeRollPopupDismissedKey: string | null = null;
 function easeOutCubic(t: number): number { return 1 - Math.pow(1 - t, 3); }
 
 function spawnApFloat(value: number, x: number, y: number, color = "#e6c15a"): void {
+  if (reduceMotionActive) return;
   apFloats.push({ value, x, y, startTime: performance.now(), duration: 1200, color });
 }
 
 function updateAndDrawApFloats(ctx: CanvasRenderingContext2D): void {
-  const now = performance.now();
+  if (reduceMotionActive) {
+    apFloats.length = 0;
+    return;
+  }
+  const now = reduceMotionActive ? 0 : performance.now();
   for (let i = apFloats.length - 1; i >= 0; i--) {
     const f = apFloats[i];
     const t = (now - f.startTime) / f.duration;
@@ -146,6 +152,7 @@ let hoverHold: { lines: string[]; x: number; y: number; maxWidth: number; maxHei
 let hoverHoldUntil = 0;
 let tooltipShowTime = 0; // timestamp when tooltip first became visible (for fade-in)
 let lastSkipLogKey: string | null = null;
+let reduceMotionActive = false;
 
 function queueHoverTip(id: string, lines: string[], x: number, y: number, maxWidth = 260, maxHeight = 220): void {
   if (!hoverStartId || id !== hoverStartId) {
@@ -193,6 +200,7 @@ function withAlpha(color: string, alpha: number): string {
 }
 
 function pushPulse(kind: FxPulse["kind"], x: number, y: number, color: string, label?: string): void {
+  if (reduceMotionActive) return;
   fxPulses.push({
     kind,
     x,
@@ -396,7 +404,7 @@ function drawTurnToast(
     return;
   }
 
-  const now = performance.now();
+  const now = reduceMotionActive ? 0 : performance.now();
   if (turnToastOpenTime === 0) turnToastOpenTime = now;
   if (!turnToastSoundPlayed) {
     playTurnStart();
@@ -1007,14 +1015,501 @@ function getLayout(width: number, height: number): Layout {
   };
 }
 
+function getActionSelectFocusLayout(base: Layout, width: number, height: number): Layout {
+  const bottomReserve = width < 980 ? 196 : 176;
+  const mapY = base.topBar.y + base.topBar.h + base.gap;
+  const mapX = base.safeLeft;
+  const mapW = Math.max(420, width - base.safeLeft - base.safeRight);
+  const mapH = Math.max(220, height - mapY - bottomReserve);
+  const handY = mapY + mapH + base.gap;
+  return {
+    ...base,
+    mapRect: { x: mapX, y: mapY, w: mapW, h: mapH },
+    leftSidebar: { x: mapX, y: mapY, w: 0, h: mapH },
+    rightSidebar: { x: mapX + mapW, y: mapY, w: 0, h: mapH },
+    handDock: { x: mapX, y: handY, w: mapW, h: Math.max(80, height - handY - 8) }
+  };
+}
+
+function phaseLabel(state: GameState): string {
+  if (state.phase === "ACTION_SELECT") return "Action Select";
+  if (state.phase === "ACTION_REVEAL") return "Action Reveal";
+  if (state.phase === "TURN_END") return "Turn End";
+  if (state.phase === "GAME_OVER") return "Game Over";
+  if (state.phase === "CHALLENGE") {
+    const sub = state.challenge?.phase ?? "CHALLENGE";
+    return `Challenge • ${sub.replace(/_/g, " ")}`;
+  }
+  return state.phase.replace(/_/g, " ");
+}
+
+function drawActionFocusMiniHud(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  regions: HitRegion[],
+  dispatch: (action: GameAction) => void,
+  hoveredId: string | undefined,
+  layout: Layout
+): void {
+  const human = state.players.find((p) => !p.isAI);
+  if (!human) return;
+  const x = layout.handDock.x;
+  const y = layout.handDock.y + 2;
+  const w = layout.handDock.w;
+  const h = 34;
+  drawPanel(ctx, x, y, w, h, "rgba(14,18,26,0.92)", "#4f5c73");
+  const drawerW = 104;
+  const drawerX = x + w - drawerW - 8;
+  const infoW = Math.max(140, drawerX - x - 12);
+  const compact = infoW < 460;
+  ctx.fillStyle = "#f5f1e6";
+  ctx.font = compact ? "600 10px 'Source Serif 4', serif" : "600 11px 'Source Serif 4', serif";
+  ctx.textAlign = "left";
+  const labels = compact
+    ? [
+        `Crys ${formatCrystals(human.crystals)}`,
+        `Teach ${human.teachings.length + human.passiveTeachings.length}`,
+        `AP ${Math.floor(finalScore(human))}`,
+        `${phaseLabel(state)}`
+      ]
+    : [
+        `Crystals ${formatCrystals(human.crystals)}`,
+        `Teachings ${human.teachings.length + human.passiveTeachings.length}`,
+        `Your AP ${Math.floor(finalScore(human))}`,
+        `Phase ${phaseLabel(state)}`
+      ];
+  const segmentW = Math.max(78, Math.floor(infoW / labels.length));
+  labels.forEach((label, idx) => {
+    ctx.fillStyle = idx === labels.length - 1 ? "rgba(245,241,230,0.78)" : "#f5f1e6";
+    ctx.fillText(clampToWidth(ctx, label, segmentW - 8), x + 10 + idx * segmentW, y + 21);
+  });
+
+  const label = state.ui.focusDrawerOpen ? "Close Drawer" : "Open Drawer";
+  drawButton(
+    ctx,
+    regions,
+    "focus-drawer-toggle",
+    drawerX,
+    y + 4,
+    drawerW,
+    26,
+    label,
+    () => dispatch({ type: "UI_TOGGLE_FOCUS_DRAWER" }),
+    hoveredId === "focus-drawer-toggle"
+  );
+}
+
+function drawActionFocusPrimaryPanel(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  regions: HitRegion[],
+  dispatch: (action: GameAction) => void,
+  hoveredId: string | undefined,
+  layout: Layout
+): void {
+  const human = state.players.find((p) => !p.isAI);
+  if (!human) return;
+  const mobile = ctx.canvas.width < 980;
+  const panelW = mobile ? Math.min(layout.mapRect.w - 24, 360) : Math.min(360, layout.mapRect.w * 0.38);
+  const panelX = mobile
+    ? layout.mapRect.x + (layout.mapRect.w - panelW) / 2
+    : layout.mapRect.x + layout.mapRect.w - panelW - 10;
+  const panelY = layout.mapRect.y + layout.mapRect.h - 130;
+  drawPanel(ctx, panelX, panelY, panelW, 84, "rgba(12,16,24,0.92)", "#4a586f");
+
+  const action = state.ui.selectedAction;
+  const title = action ? actionLabel(action) : "Select an Action";
+  ctx.fillStyle = "#f5f1e6";
+  ctx.font = "700 12px 'Cinzel', serif";
+  ctx.textAlign = "left";
+  ctx.fillText(title.toUpperCase(), panelX + 10, panelY + 18);
+
+  const summaryLines = buildActionSummaryLines(state, human).slice(0, 2);
+  ctx.fillStyle = "rgba(245,241,230,0.88)";
+  ctx.font = "11px 'Source Serif 4', serif";
+  summaryLines.forEach((line, index) => {
+    const clipped = clampToWidth(ctx, line, panelW - 20);
+    ctx.fillText(clipped, panelX + 10, panelY + 36 + index * 16);
+  });
+
+  const ctaY = panelY + 90;
+  if (action) {
+    drawButton(
+      ctx,
+      regions,
+      "focus-confirm-action",
+      panelX,
+      ctaY,
+      panelW,
+      34,
+      "Confirm Action",
+      () => dispatch({ type: "CONFIRM_ACTION" }),
+      hoveredId === "focus-confirm-action"
+    );
+  } else {
+    drawPanel(ctx, panelX, ctaY, panelW, 34, "rgba(30,35,44,0.9)", "#4a5568");
+    ctx.fillStyle = "rgba(245,241,230,0.7)";
+    ctx.font = "600 12px 'Source Serif 4', serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Choose a node to unlock confirm", panelX + panelW / 2, ctaY + 22);
+  }
+}
+
+function drawDrawerInventoryTab(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  regions: HitRegion[],
+  dispatch: (action: GameAction) => void,
+  hoveredId: string | undefined,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): void {
+  const human = state.players.find((p) => !p.isAI);
+  if (!human) return;
+  type Entry = { kind: "HAND_CARD" | "SPELL"; index: number; label: string; value: string };
+  const entries: Entry[] = [
+    ...human.hand.map((cardId, index) => ({
+      kind: "HAND_CARD" as const,
+      index,
+      label: dataStore.cardsById[cardId]?.name ?? "Game Card",
+      value: `AP ${dataStore.cardsById[cardId]?.basePower ?? 0}`
+    })),
+    ...human.spells.map((spellId, index) => ({
+      kind: "SPELL" as const,
+      index,
+      label: `Invocation: ${dataStore.spellsById[spellId]?.name ?? spellId}`,
+      value: `AP ${dataStore.spellsById[spellId]?.value ?? 0}`
+    }))
+  ];
+
+  const rowH = 30;
+  const gap = 6;
+  const visibleCount = Math.max(1, Math.floor((h - 10) / (rowH + gap)));
+  const maxOffset = Math.max(0, entries.length - visibleCount);
+  const rawOffset = Math.floor((state.ui.handScroll ?? 0) / 120);
+  const offset = clampValue(rawOffset, 0, maxOffset);
+  const canSell = state.phase === "ACTION_SELECT" && !!state.ui.shopOpen;
+
+  entries.slice(offset, offset + visibleCount).forEach((entry, idx) => {
+    const rowY = y + idx * (rowH + gap);
+    const id = `drawer-inv-${offset + idx}`;
+    drawPanel(ctx, x, rowY, w, rowH, "rgba(18,22,30,0.9)", hoveredId === id ? "#63748f" : "#3f4c61");
+    ctx.fillStyle = "#f5f1e6";
+    ctx.font = "11px 'Source Serif 4', serif";
+    ctx.textAlign = "left";
+    ctx.fillText(clampToWidth(ctx, entry.label, w - (canSell ? 84 : 18)), x + 8, rowY + 19);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "rgba(245,241,230,0.72)";
+    ctx.fillText(entry.value, x + w - (canSell ? 68 : 8), rowY + 19);
+    regions.push({ id, x, y: rowY, w, h: rowH, cursor: "default" });
+    if (canSell) {
+      const sellId = `${id}-sell`;
+      drawButton(
+        ctx,
+        regions,
+        sellId,
+        x + w - 56,
+        rowY + 5,
+        48,
+        20,
+        "Sell",
+        () => dispatch({ type: "UI_REQUEST_SELL", kind: entry.kind, index: entry.index }),
+        hoveredId === sellId
+      );
+    }
+  });
+
+  if (entries.length === 0) {
+    ctx.fillStyle = "rgba(245,241,230,0.72)";
+    ctx.font = "11px 'Source Serif 4', serif";
+    ctx.textAlign = "left";
+    ctx.fillText("No cards or invocations.", x + 6, y + 20);
+  }
+  if (maxOffset > 0) {
+    drawButton(ctx, regions, "drawer-inv-up", x + w - 116, y + h - 24, 52, 20, "Up", () => {
+      dispatch({ type: "SET_HAND_SCROLL", value: Math.max(0, (offset - 1) * 120) });
+    }, hoveredId === "drawer-inv-up");
+    drawButton(ctx, regions, "drawer-inv-down", x + w - 58, y + h - 24, 52, 20, "Down", () => {
+      dispatch({ type: "SET_HAND_SCROLL", value: Math.max(0, (offset + 1) * 120) });
+    }, hoveredId === "drawer-inv-down");
+  }
+}
+
+function drawDrawerTeachingsTab(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  regions: HitRegion[],
+  dispatch: (action: GameAction) => void,
+  hoveredId: string | undefined,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): void {
+  const human = state.players.find((p) => !p.isAI);
+  if (!human) return;
+  const entries = [
+    ...human.teachings.map((id) => ({ id, basic: true })),
+    ...human.passiveTeachings.map((id) => ({ id, basic: false }))
+  ];
+  const rowH = 34;
+  const gap = 6;
+  const visibleCount = Math.max(1, Math.floor((h - 10) / (rowH + gap)));
+  const maxOffset = Math.max(0, entries.length - visibleCount);
+  const offset = clampValue(state.ui.teachingScroll ?? 0, 0, maxOffset);
+  const canUse = state.phase === "ACTION_SELECT" && !state.ui.shopOpen;
+
+  entries.slice(offset, offset + visibleCount).forEach((entry, idx) => {
+    const teaching = dataStore.teachingsById[entry.id];
+    if (!teaching) return;
+    const rowY = y + idx * (rowH + gap);
+    const id = `drawer-teach-${offset + idx}`;
+    drawPanel(ctx, x, rowY, w, rowH, "rgba(18,22,30,0.9)", hoveredId === id ? "#63748f" : "#3f4c61");
+    ctx.fillStyle = "#f5f1e6";
+    ctx.font = "11px 'Source Serif 4', serif";
+    ctx.textAlign = "left";
+    const label = `${teaching.name} (${teaching.tier})`;
+    ctx.fillText(clampToWidth(ctx, label, w - 76), x + 8, rowY + 21);
+    regions.push({ id, x, y: rowY, w, h: rowH, cursor: "default" });
+    if (entry.basic && canUse) {
+      const useId = `${id}-use`;
+      drawButton(
+        ctx,
+        regions,
+        useId,
+        x + w - 54,
+        rowY + 7,
+        46,
+        20,
+        "Use",
+        () => dispatch({ type: "PLAY_TEACHING", teachingId: entry.id }),
+        hoveredId === useId
+      );
+    }
+  });
+
+  if (entries.length === 0) {
+    ctx.fillStyle = "rgba(245,241,230,0.72)";
+    ctx.font = "11px 'Source Serif 4', serif";
+    ctx.textAlign = "left";
+    ctx.fillText("No teachings available.", x + 6, y + 20);
+  }
+  if (maxOffset > 0) {
+    drawButton(ctx, regions, "drawer-teach-up", x + w - 116, y + h - 24, 52, 20, "Up", () => {
+      dispatch({ type: "SET_TEACHING_SCROLL", value: offset - 1 });
+    }, hoveredId === "drawer-teach-up");
+    drawButton(ctx, regions, "drawer-teach-down", x + w - 58, y + h - 24, 52, 20, "Down", () => {
+      dispatch({ type: "SET_TEACHING_SCROLL", value: offset + 1 });
+    }, hoveredId === "drawer-teach-down");
+  }
+}
+
+function drawDrawerArtifactsTab(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  regions: HitRegion[],
+  dispatch: (action: GameAction) => void,
+  hoveredId: string | undefined,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): void {
+  const human = state.players.find((p) => !p.isAI);
+  if (!human) return;
+  const rowH = 34;
+  const gap = 6;
+  const visibleCount = Math.max(1, Math.floor((h - 10) / (rowH + gap)));
+  const maxOffset = Math.max(0, human.artifacts.length - visibleCount);
+  const offset = clampValue(state.ui.artifactScroll ?? 0, 0, maxOffset);
+  const canSell = state.phase === "ACTION_SELECT" && !!state.ui.shopOpen;
+
+  human.artifacts.slice(offset, offset + visibleCount).forEach((artifactId, idx) => {
+    const artifact = dataStore.artifactsById[artifactId];
+    if (!artifact) return;
+    const rowY = y + idx * (rowH + gap);
+    const id = `drawer-art-${offset + idx}`;
+    drawPanel(ctx, x, rowY, w, rowH, "rgba(18,22,30,0.9)", hoveredId === id ? "#63748f" : "#3f4c61");
+    ctx.fillStyle = "#f5f1e6";
+    ctx.font = "11px 'Source Serif 4', serif";
+    ctx.textAlign = "left";
+    ctx.fillText(clampToWidth(ctx, artifact.name, w - 86), x + 8, rowY + 21);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "rgba(245,241,230,0.72)";
+    ctx.fillText(`AP ${artifact.value}`, x + w - (canSell ? 64 : 8), rowY + 21);
+    regions.push({ id, x, y: rowY, w, h: rowH, cursor: "default" });
+    if (canSell) {
+      const sellId = `${id}-sell`;
+      drawButton(
+        ctx,
+        regions,
+        sellId,
+        x + w - 56,
+        rowY + 7,
+        48,
+        20,
+        "Sell",
+        () => dispatch({ type: "UI_REQUEST_SELL", kind: "ARTIFACT", index: offset + idx }),
+        hoveredId === sellId
+      );
+    }
+  });
+
+  if (human.artifacts.length === 0) {
+    ctx.fillStyle = "rgba(245,241,230,0.72)";
+    ctx.font = "11px 'Source Serif 4', serif";
+    ctx.textAlign = "left";
+    ctx.fillText("No artifacts available.", x + 6, y + 20);
+  }
+  if (maxOffset > 0) {
+    drawButton(ctx, regions, "drawer-art-up", x + w - 116, y + h - 24, 52, 20, "Up", () => {
+      dispatch({ type: "SET_ARTIFACT_SCROLL", value: offset - 1 });
+    }, hoveredId === "drawer-art-up");
+    drawButton(ctx, regions, "drawer-art-down", x + w - 58, y + h - 24, 52, 20, "Down", () => {
+      dispatch({ type: "SET_ARTIFACT_SCROLL", value: offset + 1 });
+    }, hoveredId === "drawer-art-down");
+  }
+}
+
+function drawActionSelectFocusDrawer(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  regions: HitRegion[],
+  dispatch: (action: GameAction) => void,
+  hoveredId: string | undefined,
+  layout: Layout
+): void {
+  if (!state.ui.focusDrawerOpen) {
+    return;
+  }
+  const mobile = ctx.canvas.width < 980;
+  const drawerW = mobile ? ctx.canvas.width - 16 : Math.min(440, Math.max(320, Math.floor(ctx.canvas.width * 0.31)));
+  const drawerH = mobile
+    ? Math.min(360, Math.max(260, Math.floor(ctx.canvas.height * 0.46)))
+    : Math.max(280, ctx.canvas.height - (layout.topBar.y + layout.topBar.h + 16));
+  const drawerX = mobile ? 8 : ctx.canvas.width - drawerW - 8;
+  const drawerY = mobile ? ctx.canvas.height - drawerH - 8 : layout.topBar.y + layout.topBar.h + 8;
+
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.36)";
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.restore();
+  regions.push({
+    id: "focus-drawer-scrim",
+    x: 0,
+    y: 0,
+    w: ctx.canvas.width,
+    h: ctx.canvas.height,
+    onClick: () => dispatch({ type: "UI_SET_FOCUS_DRAWER_OPEN", value: false }),
+    cursor: "default"
+  });
+
+  drawPanel(ctx, drawerX, drawerY, drawerW, drawerH, "rgba(10,14,22,0.96)", "#5a6983");
+  ctx.fillStyle = "#f5f1e6";
+  ctx.font = "700 12px 'Cinzel', serif";
+  ctx.textAlign = "left";
+  ctx.fillText(mobile ? "BOTTOM DRAWER" : "RIGHT DRAWER", drawerX + 12, drawerY + 20);
+  drawButton(
+    ctx,
+    regions,
+    "focus-drawer-close",
+    drawerX + drawerW - 54,
+    drawerY + 6,
+    46,
+    24,
+    "Close",
+    () => dispatch({ type: "UI_SET_FOCUS_DRAWER_OPEN", value: false }),
+    hoveredId === "focus-drawer-close"
+  );
+
+  const tabs: FocusDrawerTab[] = ["INVENTORY", "TEACHINGS", "ARTIFACTS", "LOG"];
+  const activeTab = state.ui.focusDrawerTab ?? "INVENTORY";
+  const tabY = drawerY + 38;
+  const tabGap = 6;
+  const tabW = Math.floor((drawerW - 24 - tabGap * 3) / 4);
+  tabs.forEach((tab, index) => {
+    const tabId = `focus-tab-${tab.toLowerCase()}`;
+    drawButton(
+      ctx,
+      regions,
+      tabId,
+      drawerX + 12 + index * (tabW + tabGap),
+      tabY,
+      tabW,
+      24,
+      tab === "INVENTORY" ? "Inv" : tab === "TEACHINGS" ? "Teach" : tab === "ARTIFACTS" ? "Art" : "Log",
+      () => dispatch({ type: "UI_SET_FOCUS_DRAWER_TAB", tab }),
+      hoveredId === tabId || activeTab === tab
+    );
+  });
+
+  const controlsY = tabY + 34;
+  const controlW = Math.floor((drawerW - 32) / 2);
+  drawButton(
+    ctx,
+    regions,
+    "focus-drawer-shop",
+    drawerX + 12,
+    controlsY,
+    controlW,
+    26,
+    state.ui.shopOpen ? "Shop ON" : "Open Shop",
+    () => dispatch({ type: "TOGGLE_SHOP" }),
+    hoveredId === "focus-drawer-shop"
+  );
+  drawButton(
+    ctx,
+    regions,
+    "focus-drawer-earth",
+    drawerX + 20 + controlW,
+    controlsY,
+    controlW,
+    26,
+    state.ui.earthShopOpen ? "Earth ON" : "Earth Chamber",
+    () => dispatch({ type: "TOGGLE_EARTH_SHOP" }),
+    hoveredId === "focus-drawer-earth"
+  );
+
+  const contentX = drawerX + 12;
+  const contentY = controlsY + 34;
+  const contentW = drawerW - 24;
+  const contentH = drawerH - (contentY - drawerY) - 12;
+  drawPanel(ctx, contentX, contentY, contentW, contentH, "rgba(16,20,30,0.92)", "#435066");
+  const innerX = contentX + 6;
+  const innerY = contentY + 6;
+  const innerW = contentW - 12;
+  const innerH = contentH - 12;
+
+  if (activeTab === "LOG") {
+    drawMatchLog(ctx, state, regions, dispatch, hoveredId, innerX, innerY, innerW, innerH);
+  } else if (activeTab === "TEACHINGS") {
+    drawDrawerTeachingsTab(ctx, state, regions, dispatch, hoveredId, innerX, innerY, innerW, innerH);
+  } else if (activeTab === "ARTIFACTS") {
+    drawDrawerArtifactsTab(ctx, state, regions, dispatch, hoveredId, innerX, innerY, innerW, innerH);
+  } else {
+    drawDrawerInventoryTab(ctx, state, regions, dispatch, hoveredId, innerX, innerY, innerW, innerH);
+  }
+}
+
 export function renderMatch(
   ctx: CanvasRenderingContext2D,
   state: GameState,
   regions: HitRegion[],
   dispatch: (action: GameAction) => void,
   hoveredId?: string,
-  dt = 0
+  dt = 0,
+  prefersReducedMotion = false
 ): void {
+  const reduceMotion = prefersReducedMotion || !(state.ui.motionEnabled ?? true);
+  reduceMotionActive = reduceMotion;
+  if (reduceMotion) {
+    rewardParticles.length = 0;
+    fxPulses.length = 0;
+    apFloats.length = 0;
+    lastParticleLogCount = state.log.length;
+  }
   const { width, height } = ctx.canvas;
   ctx.clearRect(0, 0, width, height);
   hoverTip = null;
@@ -1024,7 +1519,12 @@ export function renderMatch(
     hoverStartTime = hoverNow;
   }
   const hoverReady = !!hoveredId && hoverNow - hoverStartTime >= 180;
-  const layout = getLayout(width, height);
+  const focusMode = deriveFocusMode(state);
+  const baseLayout = getLayout(width, height);
+  const layout =
+    focusMode === "ACTION_SELECT" && state.phase === "ACTION_SELECT"
+      ? getActionSelectFocusLayout(baseLayout, width, height)
+      : baseLayout;
 
   setSoundEnabled(state.ui.soundEnabled ?? true);
 
@@ -1039,8 +1539,10 @@ export function renderMatch(
     for (let i = lastFxLogCount; i < state.log.length; i += 1) {
       const line = state.log[i] ?? "";
       if (line.includes("surge of insight")) {
-        pushPulse("tp", mapCenterX, mapCenterY, "#6fd6c2", "INSIGHT SURGE");
-        spawnBurst(mapCenterX, mapCenterY, 18, "#6fd6c2", 3.5);
+        if (!reduceMotion) {
+          pushPulse("tp", mapCenterX, mapCenterY, "#6fd6c2", "INSIGHT SURGE");
+          spawnBurst(mapCenterX, mapCenterY, 18, "#6fd6c2", 3.5);
+        }
         playChime("tp");
       }
       if (
@@ -1058,24 +1560,30 @@ export function renderMatch(
         playChime("reward");
       }
       if (line.includes("Cave Keystone")) {
-        pushPulse("keystone", cavePulseX, cavePulseY, "#f0d88c", "CAVE KEYSTONE");
-        spawnBurst(cavePulseX, cavePulseY, 16, "#f0d88c", 3.5);
+        if (!reduceMotion) {
+          pushPulse("keystone", cavePulseX, cavePulseY, "#f0d88c", "CAVE KEYSTONE");
+          spawnBurst(cavePulseX, cavePulseY, 16, "#f0d88c", 3.5);
+        }
         playChime("keystone");
       }
       if (line.includes("Mountain Keystone")) {
-        pushPulse("keystone", mountainPulseX, mountainPulseY, "#ffb78a", "MOUNTAIN KEYSTONE");
-        spawnBurst(mountainPulseX, mountainPulseY, 16, "#ffb78a", 3.5);
+        if (!reduceMotion) {
+          pushPulse("keystone", mountainPulseX, mountainPulseY, "#ffb78a", "MOUNTAIN KEYSTONE");
+          spawnBurst(mountainPulseX, mountainPulseY, 16, "#ffb78a", 3.5);
+        }
         playChime("keystone");
       }
     }
     lastFxLogCount = state.log.length;
   }
 
-  updateParticles(state, mapCenterX, layout.mapRect.y + 60, dt);
-  drawParticles(ctx);
-  drawFxPulses(ctx);
+  if (!reduceMotion) {
+    updateParticles(state, mapCenterX, layout.mapRect.y + 60, dt);
+    drawParticles(ctx);
+    drawFxPulses(ctx);
+  }
 
-  drawTopBar(ctx, state, regions, dispatch, hoveredId, layout);
+  drawTopBar(ctx, state, regions, dispatch, hoveredId, layout, focusMode);
   drawSaveWarning(ctx, state);
   // Toast: show latest log line briefly
   if (state.log.length !== lastLogCount) {
@@ -1094,14 +1602,24 @@ export function renderMatch(
     drawToast(ctx, toastText, toastTime);
   }
   if (state.phase !== "GAME_OVER") {
-    renderMapBoard(ctx, state, regions, dispatch, hoveredId, dt, layout.mapRect, hoverReady);
+    renderMapBoard(ctx, state, regions, dispatch, hoveredId, dt, layout.mapRect, hoverReady, !reduceMotion);
   }
-  if (layout.leftSidebar.w > 40) {
-    drawLeftSidebar(ctx, state, regions, dispatch, hoveredId, layout);
+
+  const actionSelectFocusActive = focusMode === "ACTION_SELECT" && state.phase === "ACTION_SELECT";
+  if (actionSelectFocusActive) {
+    drawActionFocusMiniHud(ctx, state, regions, dispatch, hoveredId, layout);
+    drawActionFocusPrimaryPanel(ctx, state, regions, dispatch, hoveredId, layout);
+    drawActionSelectFocusDrawer(ctx, state, regions, dispatch, hoveredId, layout);
+  } else {
+    if (layout.leftSidebar.w > 40) {
+      drawLeftSidebar(ctx, state, regions, dispatch, hoveredId, layout);
+    }
+    if (layout.rightSidebar.w > 40) {
+      drawRightSidebar(ctx, state, regions, dispatch, hoveredId, layout);
+    }
+    drawPlayerHand(ctx, state, regions, dispatch, hoveredId, layout);
   }
-  if (layout.rightSidebar.w > 40) {
-    drawRightSidebar(ctx, state, regions, dispatch, hoveredId, layout);
-  }
+
   if (state.ui.menuOpen) {
     drawMenuOverlay(ctx, state, regions, dispatch, hoveredId, layout);
   }
@@ -1122,8 +1640,6 @@ export function renderMatch(
   if (state.phase === "GAME_OVER") {
     drawGameOver(ctx, state, regions, dispatch, hoveredId);
   }
-
-  drawPlayerHand(ctx, state, regions, dispatch, hoveredId, layout);
 
   
   if (state.phase === "ACTION_SELECT" && state.ui.shopOpen) {
@@ -1172,7 +1688,7 @@ export function renderMatch(
   if (hoverTip) {
     const now = performance.now();
     if (tooltipShowTime === 0) tooltipShowTime = now;
-    const tipAlpha = Math.min(1, (now - tooltipShowTime) / 200); // 200ms fade-in
+    const tipAlpha = reduceMotion ? 1 : Math.min(1, (now - tooltipShowTime) / 200); // 200ms fade-in
     drawTooltip(ctx, hoverTip.lines, hoverTip.x, hoverTip.y, hoverTip.maxWidth, hoverTip.maxHeight, undefined, tipAlpha);
   } else {
     hoverHold = null;
@@ -1362,7 +1878,8 @@ function drawTopBar(
   regions: HitRegion[],
   dispatch: (action: GameAction) => void,
   hoveredId: string | undefined,
-  layout: Layout
+  layout: Layout,
+  focusMode: UiFocusMode
 ): void {
   const { x, y, w, h } = layout.topBar;
   drawPanel(ctx, x, y, w, h, "rgba(14,18,26,0.8)", "#3a465e");
@@ -1403,15 +1920,16 @@ function drawTopBar(
   playerScores.sort((a, b) => b.score - a.score);
 
   // Calculate button area start position using existing button dimensions
-  // Buttons are: Dev, Shop, Menu, Settings - starting from right
+  // Buttons are: Dev, Focus, Shop, Menu, Settings - starting from right
   const settingsW2 = 40;
   const menuW2 = 96;
   const shopW2 = 96;
+  const focusW2 = 88;
   const devW2 = 80;
   const buttonGap2 = 8;
   const rightPadding2 = 12;
   const buttonAreaStart =
-    x + w - rightPadding2 - settingsW2 - buttonGap2 - menuW2 - buttonGap2 - shopW2 - buttonGap2 - devW2 - buttonGap2;
+    x + w - rightPadding2 - settingsW2 - buttonGap2 - menuW2 - buttonGap2 - shopW2 - buttonGap2 - focusW2 - buttonGap2 - devW2 - buttonGap2;
 
   // First pass: calculate total width with larger font
   ctx.font = "700 16px 'Cinzel', serif";
@@ -1455,8 +1973,10 @@ function drawTopBar(
   const menuY = y + 10;
   const shopW = 96;
   const shopX = menuX - shopW - 8;
+  const focusW = 88;
+  const focusX = shopX - focusW - 8;
   const devW = 80;
-  const devX = shopX - devW - 8;
+  const devX = focusX - devW - 8;
   const human = state.players.find((p) => !p.isAI);
 
   if (human) {
@@ -1468,19 +1988,9 @@ function drawTopBar(
     }, hoveredId === "toggle-shop");
   }
 
-  const phaseText = (() => {
-    if (state.phase === "ACTION_SELECT") return "Action Select";
-    if (state.phase === "ACTION_REVEAL") return "Action Reveal";
-    if (state.phase === "TURN_END") return "Turn End";
-    if (state.phase === "GAME_OVER") return "Game Over";
-    if (state.phase === "CHALLENGE") {
-      const sub = state.challenge?.phase ?? "CHALLENGE";
-      return `Challenge • ${sub.replace(/_/g, " ")}`;
-    }
-    return state.phase.replace(/_/g, " ");
-  })();
+  const phaseText = phaseLabel(state);
   const phaseX = barX + barW + 16;
-  const phaseMaxW = Math.max(0, menuX - 12 - phaseX);
+  const phaseMaxW = Math.max(0, devX - 12 - phaseX);
   if (phaseMaxW > 80) {
     ctx.fillStyle = "rgba(245,241,230,0.7)";
     ctx.font = "11px 'Source Serif 4', serif";
@@ -1495,6 +2005,11 @@ function drawTopBar(
   drawButton(ctx, regions, "menu", menuX, menuY, menuW, 34, "Menu", () => {
     dispatch({ type: "TOGGLE_MENU" });
   }, hoveredId === "menu");
+
+  const focusLabel = state.ui.focusModeOverride ? `FM ${shortFocusModeLabel(focusMode)}` : "FM Auto";
+  drawButton(ctx, regions, "cycle-focus-mode", focusX, menuY, focusW, 34, focusLabel, () => {
+    dispatch({ type: "UI_CYCLE_FOCUS_MODE_OVERRIDE" });
+  }, hoveredId === "cycle-focus-mode");
 
   // Dev button
   const devLabel = state.ui.debugEnabled ? "Dev: ON" : "Dev";
@@ -1752,7 +2267,7 @@ function drawRightSidebar(
   let cursorY = y + padding;
 
   const aiPlayers = state.players.filter((player) => player.isAI);
-  const pulse = performance.now() / 300;
+  const pulse = reduceMotionActive ? 0 : performance.now() / 300;
   aiPlayers.forEach((player) => {
     const isActive = state.ui.activeHighlightPlayerId === player.id;
     const panelX = x + padding;
@@ -1978,8 +2493,8 @@ function drawAiThinkingIndicator(
   w: number,
   h: number
 ): void {
-  const now = performance.now();
-  const pulse = 0.5 + 0.5 * Math.sin(now / 300);
+  const now = reduceMotionActive ? 0 : performance.now();
+  const pulse = reduceMotionActive ? 0 : 0.5 + 0.5 * Math.sin(now / 300);
 
   // Subtle outer glow
   ctx.save();
@@ -1998,7 +2513,7 @@ function drawAiThinkingIndicator(
   ctx.fill();
 
   // Text
-  const dotsCount = Math.floor(((now % 1400) / 350));
+  const dotsCount = reduceMotionActive ? 0 : Math.floor(((now % 1400) / 350));
   const dots = ".".repeat(dotsCount);
   ctx.fillStyle = "#f5f1e6";
   ctx.font = "600 12px 'Source Serif 4', serif";
@@ -2924,7 +3439,7 @@ function drawInitiativeDie(
   rolling: boolean,
   seed: number
 ): void {
-  const wobble = rolling ? Math.sin(performance.now() / 90 + seed) * 0.13 : 0;
+  const wobble = rolling && !reduceMotionActive ? Math.sin(performance.now() / 90 + seed) * 0.13 : 0;
   ctx.save();
   ctx.translate(x + size / 2, y + size / 2);
   ctx.rotate(wobble);
@@ -2978,7 +3493,7 @@ function drawChallengeInitiativePopup(
   dispatch: (action: GameAction) => void,
   challengeKey: string
 ): void {
-  const now = performance.now();
+  const now = reduceMotionActive ? 0 : performance.now();
   const participants = challenge.participants;
   if (participants.length === 0) return;
   // Modal blocker (prevents interacting with the board while reading the order).
@@ -3518,7 +4033,9 @@ function drawChallengeOverlay(
 
         // --- Card slide-in animation ---
         const slideAnim = cardSlideAnims.find((a) => a.cardId === entry.id && a.playerId === playerId);
-        const now = performance.now();
+        const now = reduceMotionActive && slideAnim
+          ? slideAnim.startTime + slideAnim.duration
+          : performance.now();
         let slideOffsetY = 0;
         let slideAlpha = 1;
         let slideScale = 1;
@@ -3570,7 +4087,9 @@ function drawChallengeOverlay(
       } else {
         // --- Invocation slide-in animation ---
         const slideAnim2 = cardSlideAnims.find((a) => a.cardId === entry.id && a.playerId === playerId);
-        const now2 = performance.now();
+        const now2 = reduceMotionActive && slideAnim2
+          ? slideAnim2.startTime + slideAnim2.duration
+          : performance.now();
         let sOff = 0;
         let sAlpha = 1;
         let sScale = 1;
@@ -3613,7 +4132,7 @@ function drawChallengeOverlay(
 
     // Active highlight ring
     if (isActive) {
-      const pulse = 0.5 + 0.5 * Math.sin(performance.now() / 280);
+      const pulse = reduceMotionActive ? 0 : 0.5 + 0.5 * Math.sin(performance.now() / 280);
       const color = `rgba(240,216,140,${0.35 + pulse * 0.4})`;
       ctx.shadowColor = color;
       ctx.shadowBlur = 18 + pulse * 12;
@@ -3681,14 +4200,16 @@ function drawChallengeOverlay(
         const newItem = items[ni];
         if (!newItem) continue;
         // Spawn slide animation
-        cardSlideAnims.push({
-          cardId: newItem.id,
-          playerId: pid,
-          startTime: nowAnim,
-          duration: 400,
-          fromX: 0, fromY: 0, toX: 0, toY: 0,
-          fromW: 0, fromH: 0, toW: 0, toH: 0
-        });
+        if (!reduceMotionActive) {
+          cardSlideAnims.push({
+            cardId: newItem.id,
+            playerId: pid,
+            startTime: nowAnim,
+            duration: 400,
+            fromX: 0, fromY: 0, toX: 0, toY: 0,
+            fromW: 0, fromH: 0, toW: 0, toH: 0
+          });
+        }
         // Spawn AP float
         const apVal = newItem.kind === "card"
           ? (dataStore.cardsById[newItem.id]?.basePower ?? 0)
@@ -3809,7 +4330,7 @@ function drawChallengeOverlay(
 
     // "Almost there" pulse animation
     if (isCloseToMilestone) {
-      const pulse = 0.4 + 0.6 * Math.sin(performance.now() / 200);
+      const pulse = reduceMotionActive ? 0 : 0.4 + 0.6 * Math.sin(performance.now() / 200);
       ctx.shadowColor = `rgba(240,216,140,${0.3 + pulse * 0.4})`;
       ctx.shadowBlur = 15 + pulse * 15;
       ctx.strokeStyle = `rgba(240,216,140,${0.5 + pulse * 0.5})`;
@@ -5901,3 +6422,4 @@ function drawDevOverlay(
   ctx.textAlign = "center";
   ctx.fillText("Click items to grant to your player", panelX + panelW / 2, panelY + panelH - 12);
 }
+

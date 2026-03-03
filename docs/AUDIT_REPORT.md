@@ -9,6 +9,23 @@ Ascension Earth V5 already has strong systemic depth and a distinctive visual di
 
 Top recommendation: implement `Phase Focus Mode` first, then tune typography/contrast tokens, then optimize UI render hot paths.
 
+## Implementation Update (2026-03-03)
+
+Completed in this slice (`ACTION_SELECT`, P0):
+
+- Added focus mode concept and resolver (`ACTION_SELECT`, `CHALLENGE`, `RESULTS`, `EARTH_CHAMBER`) with dev override toggle.
+- Applied root data attribute updates each frame: `data-focus-mode` and drawer state metadata for CSS-driven layout hooks.
+- Implemented `ACTION_SELECT` focused composition:
+  - Primary: map + selected action detail + confirm CTA.
+  - Always-on compact mini-HUD: crystals, teachings, personal AP, phase label.
+  - Secondary surfaces collapsed into a single drawer (`right` desktop, `bottom` mobile).
+- Added drawer keyboard support:
+  - `Esc` closes drawer.
+  - `Tab` is trapped while drawer is open (focus remains in drawer interaction mode).
+- Added reduced-motion behavior integration:
+  - Respects `prefers-reduced-motion` and in-game motion toggle.
+  - Disables match particles/pulse overlays and suppresses major time-based pulsing accents when reduced motion is active.
+
 ## Prioritized Top 15 Issues
 
 | # | Priority | Area | Issue | Player/Production Impact | Recommended Fix |
@@ -156,4 +173,3 @@ Safety integration:
 2. Validate required keys at boot.
 3. Fallback to procedural draw if asset missing.
 4. Track asset load errors in a single debug panel.
-
