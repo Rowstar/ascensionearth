@@ -226,8 +226,8 @@
       "value": 12,
       "effect": "tome_of_enlightenment",
       "count": 1,
-      "description": "Your TP thresholds are reduced by 3 (Basic: 7, Rare: 22, Mythic: 47).",
-      "rulesText": "Your TP thresholds are reduced by 3 (Basic: 7, Rare: 22, Mythic: 47). Reach teachings faster.",
+      "description": "Your TP thresholds are reduced by 3 from their current values.",
+      "rulesText": "Your TP thresholds are reduced by 3 from their current values. Reach teachings faster.",
       "triggers": []
     },
     {

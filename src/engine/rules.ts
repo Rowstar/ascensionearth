@@ -776,8 +776,59 @@ export function earthAdvancementTierMultiplier(tier: 1 | 2 | 3): number {
   return tier === 1 ? 1 : tier === 2 ? 1 : 1;
 }
 
-export function earthAdvancementAp(card: EarthAdvancementData): number {
-  return Math.max(0, Math.floor((card.apReward ?? 0) * earthAdvancementTierMultiplier(card.tier)));
+const EARTH_CRYSTAL_AP_VALUE = 7;
+const EARTH_CARD_ANY_AP_VALUE = 14;
+
+function average(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, v) => sum + v, 0) / values.length;
+}
+
+function averageCardValueForRarity(rarity: EarthCardRarity): number {
+  const cards = dataStore.cards.filter((card) => earthCardRarity(card.id) === rarity);
+  const avg = average(cards.map((card) => card.basePower ?? 0));
+  if (rarity === "common") return Math.max(10, avg);
+  if (rarity === "uncommon") return Math.max(14, avg);
+  if (rarity === "rare") return Math.max(20, avg);
+  return Math.max(28, avg);
+}
+
+function averageSpellValue(): number {
+  return Math.max(16, average(dataStore.spells.map((spell) => spell.value ?? 0)));
+}
+
+function averageArtifactValue(): number {
+  return Math.max(14, average(dataStore.artifacts.map((artifact) => artifact.value ?? 0)));
+}
+
+function earthTierBonusPct(tier: 1 | 2 | 3): number {
+  if (tier === 1) return 0.3;
+  if (tier === 2) return 0.4;
+  return 0.5;
+}
+
+function earthRequirementValueFloor(card: EarthAdvancementData, player?: PlayerState): number {
+  const req = card.requirements ?? { crystals: 0 };
+  const crystalCost = Math.max(0, player ? effectiveEarthCrystalCost(card, player) : req.crystals ?? 0);
+  const crystalValue = crystalCost * EARTH_CRYSTAL_AP_VALUE;
+  const artifactValue = Math.max(0, req.artifacts ?? 0) * averageArtifactValue();
+  const spellValueFloor = Math.max(0, req.spells ?? 0) * averageSpellValue();
+  const invocationValue = Math.max(0, req.invocations ?? 0) * averageSpellValue();
+  const cardsAnyValue = Math.max(0, req.cardsAny ?? 0) * EARTH_CARD_ANY_AP_VALUE;
+  const rarityValue =
+    (req.cardsByRarity?.common ?? 0) * averageCardValueForRarity("common") +
+    (req.cardsByRarity?.uncommon ?? 0) * averageCardValueForRarity("uncommon") +
+    (req.cardsByRarity?.rare ?? 0) * averageCardValueForRarity("rare") +
+    (req.cardsByRarity?.cosmic ?? 0) * averageCardValueForRarity("cosmic");
+  return crystalValue + artifactValue + spellValueFloor + invocationValue + cardsAnyValue + rarityValue;
+}
+
+export function earthAdvancementAp(card: EarthAdvancementData, player?: PlayerState): number {
+  const reqValue = earthRequirementValueFloor(card, player);
+  const tierBonus = 1 + earthTierBonusPct(card.tier);
+  const reqDriven = Math.ceil(reqValue * tierBonus);
+  const base = Math.max(0, Math.floor((card.apReward ?? 0) * earthAdvancementTierMultiplier(card.tier)));
+  return Math.max(base, reqDriven);
 }
 
 function spendCrystals(player: PlayerState, crystalsToSpend: number): void {
@@ -1119,37 +1170,51 @@ export function buyEarthAdvancement(state: GameState, player: PlayerState, tier:
   });
 
   state.log.push(
-    `${player.name} completed Earth Advancement: ${card.name} (Tier ${tier}, +${earthAdvancementAp(card)} AP, cost ${formatCrystals(crystalCost)} Crystals, consumed ${consumedArtifacts.length} Artifact${consumedArtifacts.length === 1 ? "" : "s"}, ${consumedInvocations.length} Invocation${consumedInvocations.length === 1 ? "" : "s"}, ${consumedRarityCards.length + consumedAnyCards.length} Card${consumedRarityCards.length + consumedAnyCards.length === 1 ? "" : "s"}).${passiveText ? ` Passive: ${passiveText}` : ""}`
+    `${player.name} completed Earth Advancement: ${card.name} (Tier ${tier}, +${earthAdvancementAp(card, player)} AP, cost ${formatCrystals(crystalCost)} Crystals, consumed ${consumedArtifacts.length} Artifact${consumedArtifacts.length === 1 ? "" : "s"}, ${consumedInvocations.length} Invocation${consumedInvocations.length === 1 ? "" : "s"}, ${consumedRarityCards.length + consumedAnyCards.length} Card${consumedRarityCards.length + consumedAnyCards.length === 1 ? "" : "s"}).${passiveText ? ` Passive: ${passiveText}` : ""}`
   );
 
   return true;
 }
 
-export function finalScore(player: PlayerState): number {
-  let total = 0;
-  total += player.crystals * CRYSTAL_VALUE;
-  total += player.bonusAp ?? 0;
-  player.hand.forEach((cardId) => {
-    total += cardValue(cardId);
-  });
-  player.spells.forEach((spellId) => {
-    total += spellValue(spellId);
-  });
-  player.artifacts.forEach((artifactId) => {
-    total += artifactValue(artifactId);
-  });
+export type ScoreBreakdown = {
+  crystalsAp: number;
+  handAp: number;
+  invocationsAp: number;
+  artifactsAp: number;
+  earthAp: number;
+  bonusAp: number;
+  convergenceAp: number;
+  total: number;
+};
+
+export function finalScoreBreakdown(player: PlayerState): ScoreBreakdown {
+  const crystalsAp = player.crystals * CRYSTAL_VALUE;
+  const handAp = player.hand.reduce((sum, cardId) => sum + cardValue(cardId), 0);
+  const invocationsAp = player.spells.reduce((sum, spellId) => sum + spellValue(spellId), 0);
+  const artifactsAp = player.artifacts.reduce((sum, artifactId) => sum + artifactValue(artifactId), 0);
+  const bonusAp = player.bonusAp ?? 0;
   const adv = [...player.earthAdvancementsT1, ...player.earthAdvancementsT2, ...player.earthAdvancementsT3];
-  adv.forEach((advancementId) => {
-    const advancement = dataStore.earthAdvancements.find((card) => card.id === advancementId);
-    if (advancement) {
-      total += earthAdvancementAp(advancement);
-    }
-  });
-  // Convergence of Paths: +3 AP per distinct Earth Advancement owned
-  if (player.passiveTeachings.includes("convergence_of_paths")) {
-    total += adv.length * 3;
-  }
-  return total;
+  const earthAp = adv.reduce((sum, advancementId) => {
+    const advancement = dataStore.earthAdvancementsById[advancementId];
+    if (!advancement) return sum;
+    return sum + earthAdvancementAp(advancement, player);
+  }, 0);
+  const convergenceAp = player.passiveTeachings.includes("convergence_of_paths") ? adv.length * 3 : 0;
+  const total = crystalsAp + handAp + invocationsAp + artifactsAp + earthAp + bonusAp + convergenceAp;
+  return {
+    crystalsAp,
+    handAp,
+    invocationsAp,
+    artifactsAp,
+    earthAp,
+    bonusAp,
+    convergenceAp,
+    total
+  };
+}
+
+export function finalScore(player: PlayerState): number {
+  return finalScoreBreakdown(player).total;
 }
 
 
@@ -2271,7 +2336,7 @@ function buildChallengeResult(
     earthAddedIds.forEach((advId) => {
       const adv = dataStore.earthAdvancements.find((c) => c.id === advId);
       const name = adv?.name ?? advId;
-      const ap = adv ? earthAdvancementAp(adv) : 0;
+      const ap = adv ? earthAdvancementAp(adv, player) : 0;
       apBreakdownSum += ap;
       apBreakdown.push(`Earth Advancement: ${name} (+${ap} AP)`);
       rewardBreakdown.push(`Earth Advancement: ${name} (${provenance})`);

@@ -24,6 +24,7 @@ import {
   cardValue,
   cardTeachingPower,
   finalScore,
+  finalScoreBreakdown,
   applyRewardPool,
   resolveUncontestedActions,
   rollRewardPool,
@@ -66,6 +67,7 @@ import {
   isProgressReviewRound,
   shouldAnnounceUpcomingReview
 } from "./progression";
+import { trimLogs } from "./logging";
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
@@ -137,10 +139,12 @@ export class GameStore {
   constructor() {
     this.state = {
       seed: "ascension-earth",
+      rngState: undefined,
       turn: 1,
-      maxTurns: 10,
+      maxTurns: 0,
       earthAscensionPower: 0,
       earthAscensionTarget: 999,
+      ascensionCapReachedAnnounced: false,
       settings: {
         gameSpeedMode: "NORMAL"
       },
@@ -180,22 +184,54 @@ export class GameStore {
       previousTurnRewards: {}
     };
     this.rng = new Rng(this.state.seed);
+    this.state.rngState = this.rng.snapshot();
   }
 
   dispatch(action: GameAction): void {
     const next = this.reduce(this.state, action);
-    this.state = this.applyEarthAscension(next);
+    const withAscension = this.applyEarthAscension(next);
+    withAscension.rngState = this.rng.snapshot();
+    trimLogs(withAscension);
+    this.state = withAscension;
   }
 
   private applyEarthAscension(state: GameState): GameState {
     const earthPower = state.players.reduce((sum, player) => sum + finalScore(player), 0);
     state.earthAscensionPower = earthPower;
-    if (earthPower >= state.earthAscensionTarget && state.phase !== "GAME_OVER" && state.phase !== "EVALUATION") {
-      if (state.log[state.log.length - 1] !== "Earth Ascension reaches its target.") {
-        state.log.push("Earth Ascension reaches its target.");
-      }
+    const hasReachedCap = earthPower >= state.earthAscensionTarget;
+    if (!hasReachedCap) {
+      state.ascensionCapReachedAnnounced = false;
+      return state;
     }
+    if (!state.ascensionCapReachedAnnounced) {
+      state.log.push("Earth Ascension reaches its target.");
+      state.ascensionCapReachedAnnounced = true;
+    }
+    if (state.phase === "GAME_OVER" || state.phase === "EVALUATION") {
+      return state;
+    }
+    if (state.challenge || state.ui.progressReview) {
+      return state;
+    }
+    this.startEndgameEvaluation(state, "Earth Ascension reached 999. Endgame Evaluation begins.");
+    state.earthAscensionPower = state.players.reduce((sum, player) => sum + finalScore(player), 0);
     return state;
+  }
+
+  private startEndgameEvaluation(state: GameState, reasonLog: string): void {
+    if (state.phase === "EVALUATION" || state.phase === "GAME_OVER") {
+      return;
+    }
+    const built = buildEndgameEvaluation(state);
+    const evaluated = applyEndgameEvaluationRewards(state, built);
+    state.ui.endgameEvaluation = evaluated;
+    state.phase = "EVALUATION";
+    state.pendingChallenges = [];
+    state.challenge = undefined;
+    state.ui.shopOpen = false;
+    state.ui.earthShopOpen = false;
+    state.ui.pendingSell = undefined;
+    state.log.push(reasonLog);
   }
 
   private rollPoolsForTurn(state: GameState): void {
@@ -327,6 +363,15 @@ export class GameStore {
     state.log.push(
       `Turn ${state.turn}: Mountain dice ${state.rewardPools.mountain.dice.join(",")}, Cave dice ${state.rewardPools.cave.dice.join(",")}.`
     );
+    if (state.ui.debugEnabled) {
+      const summary = state.players
+        .map((player) => {
+          const b = finalScoreBreakdown(player);
+          return `${player.name}=${b.total} (cards ${b.handAp}, inv ${b.invocationsAp}, art ${b.artifactsAp}, earth ${b.earthAp}, crystal ${b.crystalsAp}, bonus ${b.bonusAp + b.convergenceAp})`;
+        })
+        .join(" | ");
+      state.log.push(`[AP SNAPSHOT][T${state.turn}] ${summary}`);
+    }
 
     if (isProgressReviewRound(state.turn)) {
       const built = buildProgressReview(state, this.rng);
@@ -366,21 +411,17 @@ export class GameStore {
       state.log.push(`Progress Review next round! (Round ${state.turn + 1})`);
     }
 
-    if (state.maxTurns > 0 && state.turn >= state.maxTurns) {
-      const built = buildEndgameEvaluation(state);
-      const evaluated = applyEndgameEvaluationRewards(state, built);
-      state.ui.endgameEvaluation = evaluated;
-      state.phase = "EVALUATION";
-      state.pendingChallenges = [];
-      state.challenge = undefined;
-      state.ui.shopOpen = false;
-      state.ui.pendingSell = undefined;
-      state.log.push(`Round ${state.maxTurns} complete. Endgame Evaluation begins.`);
-      return state;
-    }
-
     state.turn += 1;
-    saveGame(state);
+    const saved = saveGame(state);
+    if (!saved) {
+      if (!state.ui.saveWarning) {
+        state.ui.saveWarning = "Autosave failed. Check browser storage settings.";
+        state.log.push(state.ui.saveWarning);
+      }
+    } else if (state.ui.saveWarning) {
+      state.log.push("Autosave restored.");
+      state.ui.saveWarning = undefined;
+    }
     // Reset per-turn counters and close transient UI.
     state.players.forEach((p) => {
       p.purchasesThisTurn = 0;
@@ -397,6 +438,7 @@ export class GameStore {
       }
     });
     state.ui.shopOpen = false;
+    state.ui.earthShopOpen = false;
     state.ui.pendingSell = undefined;
     clearSelections(state);
     this.rollPoolsForTurn(state);
@@ -433,18 +475,24 @@ export class GameStore {
       next.ui.musicEnabled = state.ui.musicEnabled;
       next.ui.musicVolume = state.ui.musicVolume;
       next.ui.debugEnabled = state.ui.debugEnabled;
+      next.ui.saveWarning = undefined;
       next.hotseatReveal = state.hotseatReveal;
       this.rollPoolsForTurn(next);
+      next.rngState = this.rng.snapshot();
       return next;
     }
 
     if (action.type === "LOAD_GAME") {
       this.rng = new Rng(action.state.seed);
       const loaded = structuredClone(action.state) as GameState;
+      loaded.rngState = loaded.rngState ?? undefined;
+      loaded.ascensionCapReachedAnnounced = loaded.ascensionCapReachedAnnounced ?? false;
       loaded.reviewHistory = loaded.reviewHistory ?? [];
       loaded.trophyCooldowns = loaded.trophyCooldowns ?? {};
       loaded.ui.progressReview = loaded.ui.progressReview ?? undefined;
       loaded.ui.endgameEvaluation = loaded.ui.endgameEvaluation ?? undefined;
+      loaded.ui.earthShopOpen = loaded.ui.earthShopOpen ?? false;
+      loaded.ui.saveWarning = loaded.ui.saveWarning ?? undefined;
       loaded.players.forEach((player) => {
         player.reviewBaselineForgiveness = player.reviewBaselineForgiveness ?? 0;
         player.reviewApBonus = player.reviewApBonus ?? 0;
@@ -454,8 +502,13 @@ export class GameStore {
         player.runCrystalsSpent = player.runCrystalsSpent ?? 0;
         player.runTrophiesWon = player.runTrophiesWon ?? 0;
       });
-      // Advance rng to approximate position by running it turn*100 times
-      for (let i = 0; i < loaded.turn * 100; i++) this.rng.next();
+      if (typeof loaded.rngState === "number") {
+        this.rng.restore(loaded.rngState);
+      } else {
+        // Backward compatibility for older saves that predate rng snapshots.
+        for (let i = 0; i < loaded.turn * 100; i++) this.rng.next();
+        loaded.rngState = this.rng.snapshot();
+      }
       return loaded;
     }
 
@@ -671,6 +724,11 @@ export class GameStore {
       case "SELECT_ACTION":
         next.ui.selectedAction = action.action;
         return next;
+      case "CLEAR_SELECTED_ACTION":
+        if (next.phase === "ACTION_SELECT") {
+          next.ui.selectedAction = undefined;
+        }
+        return next;
 
       case "SET_EARTH_TIER":
         next.ui.selectedEarthTier = action.tier;
@@ -680,7 +738,17 @@ export class GameStore {
           next.ui.shopOpen = !next.ui.shopOpen;
           if (next.ui.shopOpen) {
             next.ui.shopTab = next.ui.shopTab ?? "CARDS";
+            next.ui.earthShopOpen = false;
           } else {
+            next.ui.pendingSell = undefined;
+          }
+        }
+        return next;
+      case "TOGGLE_EARTH_SHOP":
+        if (next.phase === "ACTION_SELECT") {
+          next.ui.earthShopOpen = !next.ui.earthShopOpen;
+          if (next.ui.earthShopOpen) {
+            next.ui.shopOpen = false;
             next.ui.pendingSell = undefined;
           }
         }
@@ -703,6 +771,7 @@ export class GameStore {
         next.pendingChallenges = [];
         next.challenge = undefined;
         next.ui.shopOpen = false;
+        next.ui.earthShopOpen = false;
         next.ui.pendingSell = undefined;
         next.log.push("Evaluation complete. Final standings locked.");
         return next;
@@ -962,6 +1031,7 @@ export class GameStore {
           human.action = next.ui.selectedAction;
           human.locked = true;
           next.ui.shopOpen = false;
+          next.ui.earthShopOpen = false;
           if (human.action === "EARTH") {
             human.earthTierChoice = next.ui.selectedEarthTier ?? 1;
           }

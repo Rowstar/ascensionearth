@@ -1,7 +1,6 @@
 import "./style.css";
-import "./tests/harness";
 import { CanvasApp, HitRegion } from "./render/canvas";
-import { activateSound, setMusicEnabled, setMusicVolume, setSoundEnabled, transitionToGameTheme, tryAutoplayIntro } from "./render/sfx";
+import { activateSound, setChallengeActive, setMusicEnabled, setMusicVolume, setSoundEnabled, transitionToGameTheme, tryAutoplayIntro } from "./render/sfx";
 import { GameStore } from "./engine/reducer";
 import { renderMenu } from "./screens/menu";
 import { renderMatch } from "./screens/match";
@@ -28,6 +27,10 @@ if (
 
 // Try to autoplay intro music on page load (may be blocked by browser policy)
 tryAutoplayIntro();
+
+if (import.meta.env.DEV) {
+  import("./tests/harness");
+}
 
 window.addEventListener("keydown", (event) => {
   activateSound();
@@ -101,20 +104,14 @@ app.start((ctx, dt) => {
 
   // Trigger music when entering/exiting CHALLENGE
   if (prevPhase !== state.phase) {
-    // Capture previous phase before async operation to avoid closure issues
     const wasInChallenge = prevPhase === "CHALLENGE";
     const enteringChallenge = state.phase === "CHALLENGE";
-    // Ensure sound is activated before attempting music transitions
-    // (browsers require user interaction before playing audio)
     activateSound();
-    // Import lazily to avoid circulars at module init
-    import("./render/sfx").then((mod) => {
-      if (enteringChallenge) {
-        mod.setChallengeActive(true);
-      } else if (wasInChallenge) {
-        mod.setChallengeActive(false);
-      }
-    });
+    if (enteringChallenge) {
+      setChallengeActive(true);
+    } else if (wasInChallenge) {
+      setChallengeActive(false);
+    }
   }
   prevPhase = state.phase;
 

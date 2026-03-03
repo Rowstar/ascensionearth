@@ -42,4 +42,12 @@ export class Rng {
     }
     return copy;
   }
+
+  snapshot(): number {
+    return this.state >>> 0;
+  }
+
+  restore(state: number): void {
+    this.state = (state >>> 0) || 1;
+  }
 }

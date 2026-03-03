@@ -5,7 +5,7 @@
       "name": "Rooted Exchange",
       "tier": 1,
       "requirements": {
-        "crystals": 8,
+        "crystals": 7,
         "artifacts": 1
       },
       "apReward": 14,
@@ -20,20 +20,20 @@
       "name": "Circuit of Renewal",
       "tier": 1,
       "requirements": {
-        "crystals": 7,
+        "crystals": 6,
         "cardsAny": 2
       },
-      "apReward": 13
+      "apReward": 12
     },
     {
       "id": "glyph_of_echoing_rites",
       "name": "Glyph of Echoing Rites",
       "tier": 2,
       "requirements": {
-        "crystals": 12,
-        "spells": 1
+        "crystals": 11,
+        "spells": 2
       },
-      "apReward": 22,
+      "apReward": 21,
       "passiveBuff": {
         "kind": "REVIEW_AP_BONUS",
         "amount": 1,
@@ -45,10 +45,10 @@
       "name": "Concord of Voices",
       "tier": 2,
       "requirements": {
-        "crystals": 15,
+        "crystals": 13,
         "invocations": 2
       },
-      "apReward": 24,
+      "apReward": 23,
       "passiveBuff": {
         "kind": "CRYSTAL_DRIP",
         "amount": 1,
@@ -61,24 +61,25 @@
       "name": "Terran Mosaic",
       "tier": 3,
       "requirements": {
-        "crystals": 18,
+        "crystals": 17,
         "cardsByRarity": {
           "common": 2,
           "uncommon": 1
         }
       },
-      "apReward": 30
+      "apReward": 29
     },
     {
       "id": "gaia_apex_protocol",
       "name": "Gaia Apex Protocol",
       "tier": 3,
       "requirements": {
-        "crystals": 22,
+        "crystals": 20,
         "artifacts": 1,
-        "invocations": 1
+        "spells": 1,
+        "cardsAny": 1
       },
-      "apReward": 36,
+      "apReward": 34,
       "passiveBuff": {
         "kind": "CRYSTAL_DRIP",
         "amount": 1,

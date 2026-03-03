@@ -183,6 +183,7 @@ export function createEmptyUiState(): UiState {
     handScroll: 0,
     handTab: "ALL",
     shopOpen: false,
+    earthShopOpen: false,
     shopTab: "CARDS",
     challengeResult: undefined,
     challengeResultMode: "verdict",
@@ -213,7 +214,8 @@ export function createEmptyUiState(): UiState {
     activeHighlightPlayerId: null,
     activeHighlightScope: null,
     spellScroll: 0,
-    teachingScroll: 0
+    teachingScroll: 0,
+    saveWarning: undefined
   };
 }
 
@@ -365,10 +367,12 @@ export function createNewGame(seed: string): GameState {
 
   const state: GameState = {
     seed: seed || "ascension-earth",
+    rngState: rng.snapshot(),
     turn: 1,
-    maxTurns: 10,
+    maxTurns: 0,
     earthAscensionPower: 0,
     earthAscensionTarget: 999,
+    ascensionCapReachedAnnounced: false,
     guardianKeystones: {
       cave: { progress: 0, rareUnlocked: false, mythicUnlocked: false, crystalTier1Claimed: false, crystalTier2Claimed: false },
       mountain: { progress: 0, rareUnlocked: false, mythicUnlocked: false, crystalTier1Claimed: false, crystalTier2Claimed: false }

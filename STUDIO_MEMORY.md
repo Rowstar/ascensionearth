@@ -22,3 +22,7 @@
 - Rewards in macro progression systems should be AP-first; avoid granting cards, artifacts, spells, or invocations from those systems.
 - Deterministic seeded behavior is required for review/evaluation reward sampling so balancing is reproducible.
 - Explanations matter: players should be told baseline thresholds, winner reasons, and reward intent directly in UI copy.
+- Progression systems should be discoverable via dedicated entry points (not only map-node tooltips), with hover-first detail layers.
+- Keystone progress should stay contextual to Journey challenges; persistent map HUD should prioritize "what unlocks next" (trophy requirements) over long-term challenge meters.
+- If a feature requires hover to reveal controls, the control must appear directly on the hovered target (not detached below it) to keep click flow reliable.
+- Selection affordances must persist visually after click (clear selected labels/frames) so players trust state changed.

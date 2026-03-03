@@ -10,6 +10,7 @@ import {
   MOUNTAIN_CRYSTAL_TIER_2,
   INVOCATION_SLOT_MAX,
   earthAdvancementAp,
+  canBuyEarthAdvancement,
   earthAdvancementCrystalCost,
   earthAdvancementMissingRequirements,
   earthAdvancementRequirementLines,
@@ -320,7 +321,7 @@ function buildActionSummaryLines(state: GameState, human: GameState["players"][n
       `Next: ${card.name} (Tier ${tier})`,
       crystalLine,
       ...reqLines.slice(1, 3),
-      `AP Reward: +${earthAdvancementAp(card)}`,
+      `AP Reward: +${earthAdvancementAp(card, human)}`,
       missing.length === 0 ? "Status: Requirements met." : `Missing: ${missing.join(" | ")}`
     ];
   }
@@ -366,7 +367,7 @@ function drawActionSummaryPanel(
       [
         "Summary of your current action.",
         "Confirm to lock in.",
-        "Solo journeys resolve immediately."
+        "Mountain/Cave always enter Guardian Challenge."
       ],
       x + w + 8,
       y + 10,
@@ -971,7 +972,7 @@ function getLayout(width: number, height: number): Layout {
   const safeRight = 20;
   const gap = 12;
   const safeBottom = width < 980 ? 200 : 220;
-  const topBarH = 64;
+  const topBarH = 84;
   const topBarY = 8;
   let leftW = width < 1400 ? 220 : 260;
   let rightW = width < 1400 ? 260 : 320;
@@ -1075,6 +1076,7 @@ export function renderMatch(
   drawFxPulses(ctx);
 
   drawTopBar(ctx, state, regions, dispatch, hoveredId, layout);
+  drawSaveWarning(ctx, state);
   // Toast: show latest log line briefly
   if (state.log.length !== lastLogCount) {
     lastLogCount = state.log.length;
@@ -1127,6 +1129,9 @@ export function renderMatch(
   if (state.phase === "ACTION_SELECT" && state.ui.shopOpen) {
     drawShopOverlay(ctx, state, regions, dispatch, hoveredId);
   }
+  if (state.phase === "ACTION_SELECT" && state.ui.earthShopOpen) {
+    drawEarthShopOverlay(ctx, state, regions, dispatch, hoveredId);
+  }
 
   if (state.ui.debugEnabled) {
     drawDevOverlay(ctx, state, regions, dispatch, hoveredId);
@@ -1175,6 +1180,182 @@ export function renderMatch(
   }
 }
 
+type TopBarTrophyAward = {
+  playerId: string;
+  trophyId: string;
+  name: string;
+  shortDescription: string;
+  rewardAp: number;
+  passiveText?: string;
+  winnerExplanation?: string;
+  round: number;
+};
+
+function trophyIconStyle(trophyId: string): { label: string; color: string } {
+  switch (trophyId) {
+    case "most_teachings":
+      return { label: "TE", color: "#7ec8e3" };
+    case "most_crystals":
+      return { label: "CR", color: "#9adf8f" };
+    case "most_challenges_cleared":
+      return { label: "CH", color: "#f5b26b" };
+    case "most_invocations_cast":
+      return { label: "IN", color: "#b79cff" };
+    case "highest_challenge_win_rate":
+      return { label: "WR", color: "#f0d88c" };
+    case "most_artifacts_owned":
+      return { label: "AR", color: "#cdb896" };
+    case "least_crystals_spent":
+      return { label: "TH", color: "#89d6c7" };
+    case "most_rares_owned":
+      return { label: "RA", color: "#ffd24a" };
+    case "most_earth_advancements":
+      return { label: "EA", color: "#9ec1ff" };
+    default:
+      return { label: "TR", color: "#c9d2db" };
+  }
+}
+
+function collectTopBarTrophyAwards(state: GameState): TopBarTrophyAward[] {
+  const reviews = [...state.reviewHistory];
+  const activeReview = state.ui.progressReview;
+  if (activeReview?.resolved && activeReview.selectedTrophyId) {
+    const alreadyTracked = reviews.some(
+      (review) =>
+        review.reviewRound === activeReview.reviewRound &&
+        review.selectedByPlayerId === activeReview.selectedByPlayerId &&
+        review.selectedTrophyId === activeReview.selectedTrophyId
+    );
+    if (!alreadyTracked) {
+      reviews.push(activeReview);
+    }
+  }
+
+  const awards: TopBarTrophyAward[] = [];
+  reviews.forEach((review) => {
+    const playerId = review.selectedByPlayerId ?? review.winnerPlayerId;
+    if (!playerId || !review.selectedTrophyId) return;
+    const option = review.trophyOptions.find((choice) => choice.id === review.selectedTrophyId);
+    if (!option) return;
+    awards.push({
+      playerId,
+      trophyId: option.id,
+      name: option.name,
+      shortDescription: option.shortDescription,
+      rewardAp: review.selectedRewardAp ?? option.rewardAp,
+      passiveText: review.selectedPassiveBuffText ?? option.passiveBuff?.description,
+      winnerExplanation: option.winnerExplanation ?? review.winnerExplanation,
+      round: review.reviewRound
+    });
+  });
+  return awards.sort((a, b) => a.round - b.round);
+}
+
+function drawTopBarTrophyStrip(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  regions: HitRegion[],
+  hoveredId: string | undefined,
+  x: number,
+  y: number,
+  w: number
+): void {
+  if (w < 220) return;
+  const awards = collectTopBarTrophyAwards(state);
+  const players = state.players;
+
+  drawRoundedRect(ctx, x, y, w, 28, 10);
+  ctx.fillStyle = "rgba(18,24,34,0.72)";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(130,150,182,0.42)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  const colW = w / Math.max(1, players.length);
+  players.forEach((player, pIdx) => {
+    const colX = x + pIdx * colW;
+    if (pIdx > 0) {
+      ctx.strokeStyle = "rgba(255,255,255,0.08)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(colX, y + 4);
+      ctx.lineTo(colX, y + 24);
+      ctx.stroke();
+    }
+
+    const playerAwards = awards.filter((award) => award.playerId === player.id);
+    const showAwards = playerAwards.slice(-4).reverse();
+    const overflow = Math.max(0, playerAwards.length - showAwards.length);
+    const iconSize = 16;
+    const iconGap = 4;
+    const maxIcons = Math.max(1, Math.floor((colW - 62) / (iconSize + iconGap)));
+    const icons = showAwards.slice(0, maxIcons);
+
+    ctx.fillStyle = player.isAI ? "rgba(245,241,230,0.75)" : "#8bd4a1";
+    ctx.font = "600 10px 'Cinzel', serif";
+    ctx.textAlign = "left";
+    ctx.fillText(player.isAI ? player.name.replace("AI ", "") : "You", colX + 8, y + 11);
+
+    if (icons.length === 0) {
+      ctx.fillStyle = "rgba(245,241,230,0.35)";
+      ctx.font = "10px 'Source Serif 4', serif";
+      ctx.fillText("No trophies yet", colX + 8, y + 23);
+      return;
+    }
+
+    let iconX = colX + 8;
+    const iconY = y + 13;
+    icons.forEach((award, idx) => {
+      const iconId = `top-trophy-${player.id}-${award.round}-${award.trophyId}-${idx}`;
+      const icon = trophyIconStyle(award.trophyId);
+      drawRoundedRect(ctx, iconX, iconY, iconSize, iconSize, 4);
+      ctx.fillStyle = withAlpha(icon.color, 0.35);
+      ctx.fill();
+      ctx.strokeStyle = withAlpha(icon.color, 0.95);
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ctx.fillStyle = "#f5f1e6";
+      ctx.font = "700 8px 'Cinzel', serif";
+      ctx.textAlign = "center";
+      ctx.fillText(icon.label, iconX + iconSize / 2, iconY + 11);
+
+      regions.push({
+        id: iconId,
+        x: iconX,
+        y: iconY,
+        w: iconSize,
+        h: iconSize,
+        onClick: () => {},
+        cursor: "default"
+      });
+      if (hoveredId === iconId) {
+        queueHoverTip(
+          iconId,
+          [
+            `${award.name} (Round ${award.round})`,
+            award.shortDescription,
+            `Reward: +${award.rewardAp} AP`,
+            award.passiveText ? `Passive: ${award.passiveText}` : "Passive: none",
+            award.winnerExplanation ?? "No winner details."
+          ],
+          iconX - 36,
+          y - 122,
+          300,
+          220
+        );
+      }
+      iconX += iconSize + iconGap;
+    });
+
+    if (overflow > 0) {
+      ctx.fillStyle = "rgba(245,241,230,0.65)";
+      ctx.font = "10px 'Source Serif 4', serif";
+      ctx.textAlign = "left";
+      ctx.fillText(`+${overflow}`, iconX + 2, iconY + 12);
+    }
+  });
+}
+
 function drawTopBar(
   ctx: CanvasRenderingContext2D,
   state: GameState,
@@ -1207,37 +1388,6 @@ function drawTopBar(
   ctx.font = "11px 'Source Serif 4', serif";
   ctx.fillText(`Turn ${state.turn}`, barX, y + h - 10);
 
-  // --- Compact keystone progress indicators ---
-  const ks = state.guardianKeystones;
-  if (ks) {
-    const ksBarW = Math.min(120, barW * 0.35);
-    const ksBarH = 4;
-    const ksX = barX + 60;
-    const ksY = y + h - 12;
-    const tracks: Array<{ label: string; progress: number; max: number; color: string }> = [
-      { label: "C", progress: ks.cave.progress, max: CAVE_MYTHIC_THRESHOLD, color: "#7ec8e3" },
-      { label: "M", progress: ks.mountain.progress, max: MOUNTAIN_MYTHIC_THRESHOLD, color: "#f0d88c" },
-    ];
-    tracks.forEach((t, i) => {
-      const tx = ksX + i * (ksBarW + 24);
-      ctx.fillStyle = "rgba(245,241,230,0.5)";
-      ctx.font = "9px 'Source Serif 4', serif";
-      ctx.textAlign = "left";
-      ctx.fillText(t.label, tx, ksY + 3);
-      const bx = tx + 10;
-      ctx.fillStyle = "rgba(70,80,96,0.6)";
-      ctx.fillRect(bx, ksY - 1, ksBarW, ksBarH);
-      const ksPct = t.max > 0 ? Math.min(1, t.progress / t.max) : 0;
-      ctx.fillStyle = t.color;
-      ctx.fillRect(bx, ksY - 1, ksBarW * ksPct, ksBarH);
-      ctx.fillStyle = "rgba(245,241,230,0.45)";
-      ctx.font = "8px 'Source Serif 4', serif";
-      ctx.textAlign = "right";
-      ctx.fillText(`${Math.floor(t.progress)}`, bx + ksBarW + 18, ksY + 3);
-    });
-    ctx.textAlign = "left";
-  }
-
   // Draw player scores centered at the top of the top bar
   const playerScoresY = y + 24;
 
@@ -1260,7 +1410,8 @@ function drawTopBar(
   const devW2 = 80;
   const buttonGap2 = 8;
   const rightPadding2 = 12;
-  const buttonAreaStart = x + w - rightPadding2 - settingsW2 - buttonGap2 - menuW2 - buttonGap2 - shopW2 - buttonGap2 - devW2 - buttonGap2;
+  const buttonAreaStart =
+    x + w - rightPadding2 - settingsW2 - buttonGap2 - menuW2 - buttonGap2 - shopW2 - buttonGap2 - devW2 - buttonGap2;
 
   // First pass: calculate total width with larger font
   ctx.font = "700 16px 'Cinzel', serif";
@@ -1290,6 +1441,12 @@ function drawTopBar(
 
     scoreX += textWidth + 32;
   });
+
+  const trophyStripX = earthBarEnd;
+  const trophyStripW = buttonAreaStart - trophyStripX - 8;
+  if (trophyStripW > 220) {
+    drawTopBarTrophyStrip(ctx, state, regions, hoveredId, trophyStripX, y + 40, trophyStripW);
+  }
 
   const settingsW = 40;
   const settingsX = x + w - settingsW - 12;
@@ -1688,7 +1845,7 @@ function drawRightSidebar(
         lines: [
           "Challenge TP (Teaching Potential)",
           "Earned by committing cards in challenges. Low-power cards give more TP.",
-          "10 TP = Basic Teaching, 25 TP = Rare Teaching, 50 TP = Mythic Teaching.",
+          `${TP_THRESHOLD_BASIC} TP = Basic Teaching, ${TP_THRESHOLD_RARE} TP = Rare Teaching, ${TP_THRESHOLD_MYTHIC} TP = Mythic Teaching.`,
           "Resets each challenge."
         ]
       },
@@ -1796,6 +1953,21 @@ function drawToast(ctx: CanvasRenderingContext2D, text: string, timeRemaining: n
   const clipped = text.length > 110 ? text.slice(0, 107) + "..." : text;
   ctx.fillText(clipped, width / 2, y + 26);
   ctx.restore();
+}
+
+function drawSaveWarning(ctx: CanvasRenderingContext2D, state: GameState): void {
+  const warning = state.ui.saveWarning;
+  if (!warning) return;
+  const { width } = ctx.canvas;
+  const panelW = Math.min(560, width - 32);
+  const panelH = 28;
+  const x = Math.floor((width - panelW) / 2);
+  const y = 108;
+  drawPanel(ctx, x, y, panelW, panelH, "rgba(80,28,24,0.9)", "#b5564a");
+  ctx.fillStyle = "#ffe8da";
+  ctx.font = "600 12px 'Source Serif 4', serif";
+  ctx.textAlign = "center";
+  ctx.fillText(warning, x + panelW / 2, y + 18);
 }
 
 function drawAiThinkingIndicator(
@@ -2505,12 +2677,14 @@ function drawEarthPanelSmall(
   if (!player || w <= 0 || h <= 0) {
     return;
   }
+  const listY = y;
+  const listContainerH = Math.max(40, h);
   const ids = [...player.earthAdvancementsT1, ...player.earthAdvancementsT2, ...player.earthAdvancementsT3];
   const rowH = 48;
   const gap = 6;
   const totalH = ids.length > 0 ? ids.length * (rowH + gap) - gap : 0;
-  const showScroll = totalH > h;
-  const listH = h - (showScroll ? 26 : 0);
+  const showScroll = totalH > listContainerH;
+  const listH = listContainerH - (showScroll ? 26 : 0);
   const visibleCount = Math.max(1, Math.floor((listH + gap) / (rowH + gap)));
   const maxOffset = Math.max(0, ids.length - visibleCount);
   const offset = Math.min(state.ui.earthScroll ?? 0, maxOffset);
@@ -2519,11 +2693,11 @@ function drawEarthPanelSmall(
 
   ctx.save();
   ctx.beginPath();
-  ctx.rect(x, y, w, listH);
+  ctx.rect(x, listY, w, listH);
   ctx.clip();
   // Ensure text alignment is stable (some prior UI draws use centered text).
   ctx.textAlign = "left";
-  let cursorY = y;
+  let cursorY = listY;
   visible.forEach((id, idx) => {
     const card = dataStore.earthAdvancements.find((c) => c.id === id);
     if (!card) return;
@@ -2532,7 +2706,7 @@ function drawEarthPanelSmall(
     ctx.font = "12px 'Source Serif 4', serif";
     ctx.fillText(card.name, x + 8, cursorY + 16);
     ctx.font = "11px 'Source Serif 4', serif";
-    const details = `Tier ${card.tier} | AP +${earthAdvancementAp(card)}`;
+    const details = `Tier ${card.tier} | AP +${earthAdvancementAp(card, player)}`;
     const line = wrapText(ctx, details, w - 16)[0] ?? details;
     ctx.fillStyle = "rgba(245,241,230,0.8)";
     ctx.fillText(line, x + 8, cursorY + 32);
@@ -2542,7 +2716,7 @@ function drawEarthPanelSmall(
       const passiveLine = card.passiveBuff ? `Passive: ${card.passiveBuff.description}` : "Passive: none";
       const full = [
         card.name,
-        `Tier ${card.tier} | AP +${earthAdvancementAp(card)}`,
+        `Tier ${card.tier} | AP +${earthAdvancementAp(card, player)}`,
         earthRequirementSummary(card),
         passiveLine
       ];
@@ -2564,7 +2738,7 @@ function drawEarthPanelSmall(
   if (showScroll) {
     const btnW = 44;
     const btnH = 20;
-    const btnY = y + listH + 4;
+    const btnY = listY + listH + 4;
     drawButton(ctx, regions, "earth-scroll-up", x, btnY, btnW, btnH, "Up", () => {
       dispatch({ type: "SET_EARTH_SCROLL", value: offset - 1 });
     }, hoveredId === "earth-scroll-up");
@@ -4535,13 +4709,13 @@ function drawRulesOverlay(
   ctx.textAlign = "left";
   ctx.font = "12px 'Source Serif 4', serif";
   const lines = [
-    "Turn Phases: Roll Reward Pools, Action Phase, Challenge Phase.",
-    "Actions: Meditate draws 2 Game Cards. Journeys roll for Teaching/Invocation rewards; Meditate claims pending rewards.",
-    "Mountain/Cave Journey: solo claims rewards immediately; if contested, resolve Challenge.",
-    "Earth Advancement spends Crystals + resource combinations to gain AP-focused progress and tiny passives.",
-    "Challenge: Commit up to 3 items total (Game Cards and/or Invocations). Only your FIRST committed Game Card is face-down; the rest are face-up.",
-    "After Reveal and Resolve, all played game cards are discarded (invocations are always discarded).",
-    "Guardian Challenge: Total group AP unlocks rewards; unlocked rewards are drafted in contribution order."
+    "Turn Phases: Roll Reward Pools, Action Select/Reveal, then Challenge(s).",
+    "Meditate: draw 2 Game Cards, then roll meditation Invocation chance (teaching bonuses apply).",
+    "Mountain/Cave: always start a Guardian Challenge (solo or contested).",
+    "Earth Advancement: spend Crystals + required resources for AP-focused progression and passives.",
+    "Challenge: commit up to 3 total items (Game Cards and/or Invocations), one commit per beat.",
+    "Challenge TP thresholds grant Teachings: Basic 8, Rare 16, Mythic 24 (modified by effects).",
+    "Guardian rewards unlock by total group AP and are drafted in contribution order."
   ];
   lines.forEach((line, idx) => {
     ctx.fillText(line, width / 2 - 230, height / 2 - 120 + idx * 20);
@@ -4686,6 +4860,279 @@ function drawMenuOverlay(
       seedY += 14;
     });
   }
+}
+
+
+function earthAdvancementDifficulty(card: EarthAdvancementData): string {
+  const req = card.requirements ?? { crystals: 0 };
+  const rarityScore =
+    (req.cardsByRarity?.common ?? 0) * 2 +
+    (req.cardsByRarity?.uncommon ?? 0) * 3 +
+    (req.cardsByRarity?.rare ?? 0) * 4 +
+    (req.cardsByRarity?.cosmic ?? 0) * 6;
+  const score =
+    (req.crystals ?? 0) +
+    (req.artifacts ?? 0) * 5 +
+    (req.spells ?? 0) * 4 +
+    (req.invocations ?? 0) * 5 +
+    (req.cardsAny ?? 0) * 2 +
+    rarityScore;
+  if (score <= 12) return "Easy";
+  if (score <= 18) return "Steady";
+  if (score <= 25) return "Advanced";
+  if (score <= 32) return "Hard";
+  return "Apex";
+}
+
+function drawEarthShopOverlay(
+  ctx: CanvasRenderingContext2D,
+  state: GameState,
+  regions: HitRegion[],
+  dispatch: (action: GameAction) => void,
+  hoveredId?: string
+): void {
+  const { width, height } = ctx.canvas;
+  const human = state.players.find((p) => !p.isAI);
+  if (!human) return;
+
+  regions.push({
+    id: "earth-shop-blocker",
+    x: 0,
+    y: 0,
+    w: width,
+    h: height,
+    onClick: () => {},
+    cursor: "default"
+  });
+
+  const w = Math.min(860, width - 36);
+  const h = Math.min(700, height - 30);
+  const x = Math.floor(width / 2 - w / 2);
+  const y = Math.floor(height / 2 - h / 2);
+  drawPanel(ctx, x, y, w, h, "rgba(8,10,16,0.96)", "#5a6c8a");
+
+  const contentX = x + 18;
+  const contentW = w - 36;
+  const selectedTier = state.ui.selectedEarthTier ?? 1;
+  const actionLabelText = state.ui.selectedAction === "EARTH" ? `EARTH selected (Tier ${selectedTier})` : "EARTH not selected";
+  const topByTier: Record<1 | 2 | 3, string | undefined> = {
+    1: state.decks.earthAdvancementsT1[0],
+    2: state.decks.earthAdvancementsT2[0],
+    3: state.decks.earthAdvancementsT3[0]
+  };
+
+  ctx.fillStyle = "#f5f1e6";
+  ctx.font = "600 18px 'Cinzel', serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Earth Advancement Chamber", contentX, y + 32);
+
+  drawRoundedRect(ctx, x + w - 282, y + 18, 160, 26, 12);
+  ctx.fillStyle = "rgba(22,26,34,0.9)";
+  ctx.fill();
+  ctx.strokeStyle = "#6fd6c2";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.fillStyle = "#c9f0e6";
+  ctx.font = "600 12px 'Cinzel', serif";
+  ctx.textAlign = "center";
+  ctx.fillText(`${human.crystals} CRYSTALS`, x + w - 202, y + 35);
+
+  drawRoundedRect(ctx, x + w - 116, y + 18, 98, 26, 12);
+  ctx.fillStyle = "rgba(22,26,34,0.9)";
+  ctx.fill();
+  ctx.strokeStyle = state.ui.selectedAction === "EARTH" ? "#9adf8f" : "#7688a8";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.fillStyle = state.ui.selectedAction === "EARTH" ? "#c9f0d6" : "rgba(245,241,230,0.8)";
+  ctx.font = "600 11px 'Cinzel', serif";
+  ctx.fillText(`Tier ${selectedTier}`, x + w - 67, y + 35);
+
+  ctx.fillStyle = "rgba(245,241,230,0.74)";
+  ctx.font = "11px 'Source Serif 4', serif";
+  ctx.textAlign = "left";
+  ctx.fillText(actionLabelText, contentX, y + 52);
+  ctx.fillText("All 6 Earth Advancements are shown below. Only each tier's active path can be selected.", contentX, y + 66);
+  if (state.ui.selectedAction === "EARTH") {
+    drawButton(
+      ctx,
+      regions,
+      "earth-clear-selection",
+      x + w - 252,
+      y + 52,
+      138,
+      24,
+      "Clear Selection",
+      () => dispatch({ type: "CLEAR_SELECTED_ACTION" }),
+      hoveredId === "earth-clear-selection"
+    );
+  }
+  const tierCounts = [
+    state.decks.earthAdvancementsT1.length,
+    state.decks.earthAdvancementsT2.length,
+    state.decks.earthAdvancementsT3.length
+  ];
+  ctx.fillText(
+    `Variations: ${dataStore.earthAdvancements.length} total (Tier 1: ${tierCounts[0]}, Tier 2: ${tierCounts[1]}, Tier 3: ${tierCounts[2]} remaining)`,
+    contentX,
+    y + 80
+  );
+
+  const cards = [...dataStore.earthAdvancements].sort((a, b) => {
+    if (a.tier !== b.tier) return a.tier - b.tier;
+    return a.name.localeCompare(b.name);
+  });
+  const gridX = contentX;
+  const gridY = y + 96;
+  const colGap = 10;
+  const rowGap = 10;
+  const cardW = Math.floor((contentW - colGap) / 2);
+  const cardH = 166;
+
+  cards.forEach((card, index) => {
+    const col = index % 2;
+    const row = Math.floor(index / 2);
+    const cx = gridX + col * (cardW + colGap);
+    const cy = gridY + row * (cardH + rowGap);
+    const topId = topByTier[card.tier];
+    const isActivePath = topId === card.id;
+    const selected = state.ui.selectedAction === "EARTH" && selectedTier === card.tier && isActivePath;
+    const missing = earthAdvancementMissingRequirements(card, human);
+    const ready = isActivePath && missing.length === 0;
+    const requirements = earthAdvancementRequirementLines(card);
+
+    drawPanel(
+      ctx,
+      cx,
+      cy,
+      cardW,
+      cardH,
+      isActivePath ? "rgba(16,20,30,0.95)" : "rgba(14,18,26,0.92)",
+      selected ? "#9adf8f" : isActivePath ? "#6f87ae" : "#41506b"
+    );
+    ctx.fillStyle = "#f5f1e6";
+    ctx.font = "700 12px 'Cinzel', serif";
+    ctx.textAlign = "left";
+    ctx.fillText(`Tier ${card.tier} • ${earthAdvancementDifficulty(card)}`, cx + 10, cy + 16);
+    ctx.font = "600 13px 'Cinzel', serif";
+    ctx.fillText(clampToWidth(ctx, card.name, cardW - 20), cx + 10, cy + 34);
+    ctx.fillStyle = "rgba(201,240,230,0.95)";
+    ctx.font = "600 11px 'Source Serif 4', serif";
+    ctx.fillText(`+${earthAdvancementAp(card, human)} AP`, cx + 10, cy + 50);
+    ctx.fillStyle = isActivePath ? "rgba(159,235,188,0.95)" : "rgba(245,241,230,0.52)";
+    ctx.fillText(isActivePath ? "Active path" : "Queued path", cx + 94, cy + 50);
+
+    ctx.fillStyle = "rgba(245,241,230,0.82)";
+    ctx.font = "11px 'Source Serif 4', serif";
+    requirements.slice(0, 3).forEach((line, lineIdx) => {
+      ctx.fillText(clampToWidth(ctx, `- ${line}`, cardW - 20), cx + 10, cy + 66 + lineIdx * 13);
+    });
+    const passive = card.passiveBuff ? card.passiveBuff.description : "No passive";
+    ctx.fillStyle = "rgba(191,214,240,0.9)";
+    ctx.fillText(clampToWidth(ctx, `Passive: ${passive}`, cardW - 20), cx + 10, cy + 106);
+
+    const statusText = isActivePath
+      ? (ready ? "Ready now" : `Need: ${missing.join(" | ")}`)
+      : "Not selectable until this tier path cycles forward";
+    ctx.fillStyle = ready ? "#9adf8f" : "rgba(245,201,140,0.95)";
+    ctx.fillText(clampToWidth(ctx, statusText, cardW - 160), cx + 10, cy + 122);
+
+    const btnX = cx + cardW - 136;
+    const btnY = cy + cardH - 36;
+    const btnId = `earth-shop-select-${card.id}`;
+    const toggleSelection = () => {
+      if (!isActivePath) return;
+      if (selected) {
+        dispatch({ type: "CLEAR_SELECTED_ACTION" });
+      } else {
+        dispatch({ type: "SELECT_ACTION", action: "EARTH" });
+        dispatch({ type: "SET_EARTH_TIER", tier: card.tier });
+      }
+    };
+    regions.push({
+      id: `earth-card-${card.id}`,
+      x: cx,
+      y: cy,
+      w: cardW,
+      h: cardH,
+      onClick: toggleSelection,
+      cursor: isActivePath ? "pointer" : "default"
+    });
+    if (isActivePath) {
+      drawButton(
+        ctx,
+        regions,
+        btnId,
+        btnX,
+        btnY,
+        126,
+        26,
+        selected ? "SELECTED" : `Select T${card.tier}`,
+        toggleSelection,
+        hoveredId === btnId
+      );
+      if (selected) {
+        ctx.strokeStyle = "rgba(159,235,188,0.95)";
+        ctx.lineWidth = 2;
+        drawRoundedRect(ctx, btnX - 2, btnY - 2, 130, 30, 10);
+        ctx.stroke();
+      }
+    } else {
+      drawPanel(ctx, btnX, btnY, 126, 26, "rgba(36,40,52,0.9)", "#51617d");
+      ctx.fillStyle = "rgba(245,241,230,0.6)";
+      ctx.font = "600 11px 'Cinzel', serif";
+      ctx.textAlign = "center";
+      ctx.fillText("Queued", btnX + 63, btnY + 17);
+    }
+    if (hoveredId === `earth-card-${card.id}`) {
+      queueHoverTip(
+        `earth-card-${card.id}`,
+        [
+          `${card.name} (Tier ${card.tier}, ${earthAdvancementDifficulty(card)})`,
+          `Reward: +${earthAdvancementAp(card, human)} AP`,
+          ...requirements,
+          isActivePath ? (ready ? "Status: Ready now" : `Missing: ${missing.join(" | ")}`) : "Status: Queued path"
+        ],
+        cx + cardW + 6,
+        cy - 8,
+        320,
+        240
+      );
+    }
+  });
+
+  const footerY = y + h - 54;
+  ctx.fillStyle = "rgba(245,241,230,0.7)";
+  ctx.font = "11px 'Source Serif 4', serif";
+  ctx.textAlign = "left";
+  ctx.fillText("Earth completions resolve when actions lock. Use Crystal Shop to sell for missing costs.", contentX, footerY + 17);
+
+  drawButton(
+    ctx,
+    regions,
+    "earth-shop-open-crystal",
+    x + w - 250,
+    footerY + 6,
+    132,
+    28,
+    "Crystal Shop",
+    () => {
+      dispatch({ type: "TOGGLE_EARTH_SHOP" });
+      dispatch({ type: "TOGGLE_SHOP" });
+    },
+    hoveredId === "earth-shop-open-crystal"
+  );
+  drawButton(
+    ctx,
+    regions,
+    "earth-shop-close",
+    x + w - 106,
+    y + 12,
+    86,
+    30,
+    "Close",
+    () => dispatch({ type: "TOGGLE_EARTH_SHOP" }),
+    hoveredId === "earth-shop-close"
+  );
 }
 
 

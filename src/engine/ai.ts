@@ -122,8 +122,8 @@ export function decideAiAction(state: GameState, player: PlayerState, rng: Rng):
   // The AI chooses using a softmax over utilities so it feels smart *and* less predictable.
   // Utilities include expected reward, contest risk, economy needs, and late-game urgency.
 
-  const turnsLeft = Math.max(0, state.maxTurns - state.turn);
-  const lateGame = turnsLeft <= 4;
+  const ascensionProgress = state.earthAscensionTarget > 0 ? state.earthAscensionPower / state.earthAscensionTarget : 0;
+  const lateGame = ascensionProgress >= 0.75 || state.turn >= 8;
   const myEconomy = player.crystals;
   const myHand = player.hand.length;
   const mySpells = player.spells.length;
@@ -315,8 +315,6 @@ export function chooseSpellToPlay(state: GameState, challenge: ChallengeState, p
 
   // Slight randomness prevents identical play lines.
   return softmaxPick(rng, candidates, 0.6);
-
-  return undefined;
 }
 
 export type AiEscalationDecision =
@@ -450,8 +448,8 @@ export function decideAiShopPurchase(
   const totalPurchases = purchasesCard + purchasesSpell;
   if (!hasDoctrine && totalPurchases >= 1) return null;
 
-  const turnsLeft = Math.max(0, state.maxTurns - state.turn);
-  const lateGame = turnsLeft <= 4;
+  const ascensionProgress = state.earthAscensionTarget > 0 ? state.earthAscensionPower / state.earthAscensionTarget : 0;
+  const lateGame = ascensionProgress >= 0.75 || state.turn >= 8;
 
   const crystalsTotal = player.crystals;
   const canBuyCard = crystalsTotal >= SHOP_CARD_COST && (hasDoctrine ? purchasesCard < 2 : totalPurchases < 1);

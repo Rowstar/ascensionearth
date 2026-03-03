@@ -6,6 +6,8 @@ import {
   applySpellEffect,
   applyTeachingEffect,
   calculateChallengeTotals,
+  earthAdvancementAp,
+  finalScore,
   getDiceBonus,
   gainTeaching,
   meditate,
@@ -418,6 +420,58 @@ export function runSmokeTests(): void {
   const optionsB = reviewB.trophyOptions.map((opt) => opt.id).join(",");
   assert(optionsA === optionsB, "Progress review trophy options should be deterministic for same seed and state.");
 
+  const saveStoreA = new GameStore();
+  saveStoreA.dispatch({ type: "SET_SEED", seed: "save-load-determinism" });
+  saveStoreA.dispatch({ type: "START_GAME" });
+  saveStoreA.dispatch({ type: "END_TURN" });
+  const savedSnapshot = structuredClone(saveStoreA.state);
+  assert(typeof savedSnapshot.rngState === "number", "Saved state should include rngState for deterministic loads.");
+  const saveStoreB = new GameStore();
+  saveStoreB.dispatch({ type: "LOAD_GAME", state: savedSnapshot });
+  saveStoreA.dispatch({ type: "END_TURN" });
+  saveStoreB.dispatch({ type: "END_TURN" });
+  const mountainA = saveStoreA.state.rewardPools.mountain?.dice.join(",") ?? "";
+  const mountainB = saveStoreB.state.rewardPools.mountain?.dice.join(",") ?? "";
+  const caveA = saveStoreA.state.rewardPools.cave?.dice.join(",") ?? "";
+  const caveB = saveStoreB.state.rewardPools.cave?.dice.join(",") ?? "";
+  assert(mountainA === mountainB && caveA === caveB, "Save/load should preserve deterministic RNG sequence.");
+  assert(
+    (saveStoreA.state.rngState ?? -1) === (saveStoreB.state.rngState ?? -2),
+    "RNG snapshots should match after equivalent post-load actions."
+  );
+
+  const earthApState = createNewGame("earth-ap-consistency");
+  const earthPlayer = earthApState.players[0];
+  earthPlayer.passiveTeachings.push("convergence_of_paths");
+  const earthCard = dataStore.earthAdvancements.find((card) => (card.requirements?.crystals ?? 0) >= 2);
+  assert(!!earthCard, "Expected at least one Earth Advancement with crystal requirements.");
+  const beforeEarthScore = finalScore(earthPlayer);
+  if (earthCard) {
+    if (earthCard.tier === 1) {
+      earthPlayer.earthAdvancementsT1.push(earthCard.id);
+    } else if (earthCard.tier === 2) {
+      earthPlayer.earthAdvancementsT2.push(earthCard.id);
+    } else {
+      earthPlayer.earthAdvancementsT3.push(earthCard.id);
+    }
+    const afterEarthScore = finalScore(earthPlayer);
+    const expectedDelta = earthAdvancementAp(earthCard, earthPlayer) + 3;
+    assert(
+      afterEarthScore - beforeEarthScore === expectedDelta,
+      "Final score should use player-aware Earth AP and convergence bonus."
+    );
+  }
+
+  const capStore = new GameStore();
+  const capState = createNewGame("ascension-cap-end");
+  capState.players.forEach((player) => {
+    player.bonusAp = 420;
+  });
+  capStore.dispatch({ type: "LOAD_GAME", state: capState });
+  assert(capStore.state.phase === "EVALUATION", "Reaching Earth cap should trigger Endgame Evaluation immediately.");
+  capStore.dispatch({ type: "UI_CLOSE_EVALUATION" });
+  assert(capStore.state.phase === "GAME_OVER", "Closing evaluation should finalize the run.");
+
   console.log("Ascension Earth smoke tests passed.");
 }
 
@@ -450,6 +504,22 @@ export function simulateTurns(seed = "debug-sim", turns = 10): void {
     }
     if (store.state.ui.challengeResult) {
       store.dispatch({ type: "UI_CLEAR_CHALLENGE_RESULT" });
+      continue;
+    }
+    if (store.state.ui.progressReview) {
+      const review = store.state.ui.progressReview;
+      if (!review.resolved && review.winnerPlayerId) {
+        const first = review.trophyOptions[0];
+        if (first) {
+          store.dispatch({ type: "UI_SELECT_TROPHY", trophyId: first.id });
+          continue;
+        }
+      }
+      store.dispatch({ type: "UI_CLOSE_PROGRESS_REVIEW" });
+      continue;
+    }
+    if (store.state.ui.endgameEvaluation) {
+      store.dispatch({ type: "UI_CLOSE_EVALUATION" });
       continue;
     }
     if (store.state.ui.turnToast) {

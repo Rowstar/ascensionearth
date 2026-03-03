@@ -520,6 +520,7 @@ export interface UiState {
   };
   selectedEarthTier?: 1 | 2 | 3;
   shopOpen?: boolean;
+  earthShopOpen?: boolean;
   shopTab?: "CARDS" | "SPELLS";
   debugEnabled?: boolean;
   soundEnabled?: boolean;
@@ -550,6 +551,7 @@ export interface UiState {
   spellScroll?: number;
   teachingScroll?: number;
   challengeLogExpanded?: boolean;
+  saveWarning?: string;
 }
 
 export type ChallengeRewardDelta = {
@@ -604,10 +606,12 @@ export type ChallengeResult = {
 
 export interface GameState {
   seed: string;
+  rngState?: number;
   turn: number;
   maxTurns: number;
   earthAscensionPower: number;
   earthAscensionTarget: number;
+  ascensionCapReachedAnnounced?: boolean;
   guardianKeystones: GuardianKeystones;
   settings: GameSettings;
   phase: Phase;
@@ -708,6 +712,7 @@ export type GameAction =
   | { type: "UI_CLEAR_TURN_TOAST" }
   | { type: "ROLL_POOLS" }
   | { type: "SELECT_ACTION"; action: ActionChoice }
+  | { type: "CLEAR_SELECTED_ACTION" }
   | { type: "CONFIRM_ACTION" }
   | { type: "LOCK_ACTIONS" }
   | { type: "SELECT_CARD"; cardIndex: number }
@@ -726,6 +731,7 @@ export type GameAction =
   | { type: "CHALLENGE_DRAFT_PICK"; rewardId: string }
   | { type: "LOAD_GAME"; state: GameState }
   | { type: "TOGGLE_SHOP" }
+  | { type: "TOGGLE_EARTH_SHOP" }
   | { type: "SET_SHOP_TAB"; tab: "CARDS" | "SPELLS" }
   | { type: "BUY_SHOP_CARD"; cardId: string }
   | { type: "BUY_SHOP_SPELL"; spellId: string };

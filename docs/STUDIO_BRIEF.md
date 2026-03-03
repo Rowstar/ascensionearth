@@ -15,10 +15,10 @@
 - Save/load support plus persisted preferences (sound, music, speed, motion, particle quality, parallax).
 - Data-driven content from JSON sets (cards, spells, artifacts, teachings).
 - In-browser test harness available via `runAscensionTests()` in the console.
-
-## Known Issues / Gaps
-- Automated tests are minimal; most validation is still manual playtesting.
-- UI complexity is growing, so periodic readability and hierarchy passes are needed.
+- Progress Review rounds now trigger every 5 turns (configurable) with one-turn warning, baseline checks, trophy category winner resolution, and seeded deterministic 3-option trophy rewards.
+- Trophy system now includes multi-category scoring with cooldown-aware sampling and winner explanation UI.
+- Earth Advancement is redesigned around multi-requirement combinations (crystals + other resources) and AP-focused rewards with tiny passives.
+- Endgame Evaluation phase now triggers when Earth Ascension reaches the 999 target, evaluates run categories, and grants themed AP rewards.
 
 ## Required Context
 - Read VISION.md
@@ -33,4 +33,3 @@
 - [ ] Run Plan Fidelity Review using docs/REVIEW_TEMPLATE.md
 - [ ] Ask only high-level questions if direction is needed
 - [ ] Update STUDIO_MEMORY.md, CURRENT_STATE.md, and DECISION_LOG.md
-

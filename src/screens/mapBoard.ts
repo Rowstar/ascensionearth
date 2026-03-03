@@ -10,12 +10,12 @@ import {
   MOUNTAIN_CRYSTAL_TIER_2,
   canBuyEarthAdvancement,
   earthAdvancementCrystalCost,
-  earthAdvancementMissingRequirements,
   earthAdvancementRequirementLines,
   formatCrystals
 } from "../engine/rules";
+import { PROGRESS_REVIEW_INTERVAL, progressReviewBaseline } from "../engine/progression";
 import { dataStore } from "../engine/state";
-import { drawButton, drawPanel } from "../render/ui";
+import { drawButton, drawPanel, drawRoundedRect } from "../render/ui";
 import { HitRegion } from "../render/canvas";
 import { playHover, stopHover } from "../render/sfx";
 import {
@@ -184,6 +184,10 @@ function measureTooltipHeight(ctx: CanvasRenderingContext2D, text: string | stri
 
 function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
+}
+
+function nextThreshold(progress: number, thresholds: number[]): number | undefined {
+  return thresholds.find((value) => progress < value);
 }
 
 function formatPercent(value: number): string {
@@ -377,21 +381,39 @@ function actionTooltipLines(state: GameState, action: MapActionType): string[] {
     case "MOUNTAIN": {
       const current = state.rewardPools.mountain?.rewards ?? [];
       const currentLines = rewardPoolLines(current);
+      const progress = Math.floor(state.guardianKeystones?.mountain.progress ?? 0);
+      const next = nextThreshold(progress, [
+        MOUNTAIN_CRYSTAL_TIER_1,
+        MOUNTAIN_RARE_THRESHOLD,
+        MOUNTAIN_CRYSTAL_TIER_2,
+        MOUNTAIN_MYTHIC_THRESHOLD
+      ]);
       return [
         "Mountain Journey",
         ...currentLines,
         "Teachings earned via Challenge TP thresholds.",
-        "Solo or contested: Guardian Challenge unlocks the pool via AP."
+        "Solo or contested: Guardian Challenge unlocks the pool via AP.",
+        `Keystone TP: ${progress}/${MOUNTAIN_MYTHIC_THRESHOLD}`,
+        next ? `Next Keystone reward in ${next - progress} TP` : "Mountain Keystone complete"
       ];
     }
     case "CAVE": {
       const current = state.rewardPools.cave?.rewards ?? [];
       const currentLines = rewardPoolLines(current);
+      const progress = Math.floor(state.guardianKeystones?.cave.progress ?? 0);
+      const next = nextThreshold(progress, [
+        CAVE_CRYSTAL_TIER_1,
+        CAVE_RARE_THRESHOLD,
+        CAVE_CRYSTAL_TIER_2,
+        CAVE_MYTHIC_THRESHOLD
+      ]);
       return [
         "Cave Journey",
         ...currentLines,
         "Teachings earned via Challenge TP thresholds.",
-        "Solo or contested: Guardian Challenge unlocks the pool via AP."
+        "Solo or contested: Guardian Challenge unlocks the pool via AP.",
+        `Keystone AP: ${progress}/${CAVE_MYTHIC_THRESHOLD}`,
+        next ? `Next Keystone reward in ${next - progress} AP` : "Cave Keystone complete"
       ];
     }
     case "EARTH": {
@@ -410,12 +432,12 @@ function actionTooltipLines(state: GameState, action: MapActionType): string[] {
       };
       return [
         "Earth Advancement (Solo)",
-        "Spend Crystals plus mixed resources to gain Personal AP and tiny passives.",
+        "AP-focused path: spend Crystals + mixed resources for Personal AP and tiny passives.",
         `Your currency: ${crystalTotal} Crystals`,
         tierLine("Tier 1", t1, can1),
         tierLine("Tier 2", t2, can2),
         tierLine("Tier 3", t3, can3),
-        "Tip: You can sell cards, invocations, artifacts, or non-basic teachings for Crystals."
+        "Hover the Earth node to reveal the Earth Chamber button."
       ];
     }
     default:
@@ -456,52 +478,51 @@ export function renderMapBoard(
   }));
   const meditateNode = nodes.find((node) => node.id === "MEDITATE");
 
-  const keystones = state.guardianKeystones ?? {
-    cave: { progress: 0, rareUnlocked: false, mythicUnlocked: false, crystalTier1Claimed: false, crystalTier2Claimed: false },
-    mountain: { progress: 0, rareUnlocked: false, mythicUnlocked: false, crystalTier1Claimed: false, crystalTier2Claimed: false }
-  };
-  const keystoneW = 260;
-  const keystoneH = 50;
-  const keystoneX = mapRect.x + 12;
-  const keystoneY = mapRect.y + 12;
-  drawKeystonePanel(
-    ctx,
-    regions,
-    "keystone-cave",
-    keystoneX,
-    keystoneY,
-    keystoneW,
-    keystoneH,
-    "Cave Keystone",
-    Math.floor(keystones.cave.progress),
-    CAVE_MYTHIC_THRESHOLD,
-    keystones.cave.rareUnlocked,
-    keystones.cave.mythicUnlocked,
-    hoveredId === "keystone-cave",
-    CAVE_CRYSTAL_TIER_1,
-    CAVE_CRYSTAL_TIER_2,
-    keystones.cave.crystalTier1Claimed,
-    keystones.cave.crystalTier2Claimed
+  const reviewW = 300;
+  const reviewH = 70;
+  const reviewX = mapRect.x + 12;
+  const reviewY = mapRect.y + 12;
+  const nextReviewRound = Math.max(
+    state.turn,
+    state.turn + ((PROGRESS_REVIEW_INTERVAL - (state.turn % PROGRESS_REVIEW_INTERVAL)) % PROGRESS_REVIEW_INTERVAL)
   );
-  drawKeystonePanel(
+  const baseline = progressReviewBaseline(nextReviewRound);
+  drawPanel(
     ctx,
-    regions,
-    "keystone-mountain",
-    keystoneX,
-    keystoneY + keystoneH + 8,
-    keystoneW,
-    keystoneH,
-    "Mountain Keystone",
-    Math.floor(keystones.mountain.progress),
-    MOUNTAIN_MYTHIC_THRESHOLD,
-    keystones.mountain.rareUnlocked,
-    keystones.mountain.mythicUnlocked,
-    hoveredId === "keystone-mountain",
-    MOUNTAIN_CRYSTAL_TIER_1,
-    MOUNTAIN_CRYSTAL_TIER_2,
-    keystones.mountain.crystalTier1Claimed,
-    keystones.mountain.crystalTier2Claimed
+    reviewX,
+    reviewY,
+    reviewW,
+    reviewH,
+    "rgba(16,20,28,0.9)",
+    hoveredId === "review-trophy-hud" ? "#6a7a96" : "#3d475f"
   );
+  // Single trophy review callout for action-select readability.
+  drawPanel(ctx, reviewX + 10, reviewY + 10, 26, 26, "rgba(46,36,20,0.9)", "#ad8b4e");
+  ctx.fillStyle = "#f5d98a";
+  ctx.font = "700 13px 'Source Serif 4', serif";
+  ctx.textAlign = "center";
+  ctx.fillText("🏆", reviewX + 23, reviewY + 28);
+  ctx.fillStyle = "#f5f1e6";
+  ctx.font = "600 12px 'Cinzel', serif";
+  ctx.textAlign = "left";
+  ctx.fillText(`Trophy Review R${nextReviewRound}`, reviewX + 44, reviewY + 20);
+  ctx.fillStyle = "rgba(245,241,230,0.9)";
+  ctx.font = "10px 'Source Serif 4', serif";
+  ctx.fillText(
+    `Need ${formatCrystals(baseline.minCrystals)} Crystals OR ${baseline.minTeachings} Teachings`,
+    reviewX + 44,
+    reviewY + 36
+  );
+  ctx.fillText("Hover for category details and tie-break rules.", reviewX + 44, reviewY + 50);
+  regions.push({
+    id: "review-trophy-hud",
+    x: reviewX,
+    y: reviewY,
+    w: reviewW,
+    h: reviewH,
+    onClick: () => {},
+    cursor: "help"
+  });
 
   const playerAnchor = {
     x: mapRect.x + mapRect.w - 96,
@@ -512,8 +533,8 @@ export function renderMapBoard(
   const canBuyEarth = human ? (canBuyEarthAdvancement(state, human, 1) || canBuyEarthAdvancement(state, human, 2) || canBuyEarthAdvancement(state, human, 3)) : false;
 
   const allowInteract = state.phase === "ACTION_SELECT";
-  const hoveredAction = allowInteract && hoveredId?.startsWith("map-")
-    ? (hoveredId.replace("map-", "") as MapActionType)
+  const hoveredAction = allowInteract
+    ? nodes.find((node) => hoveredId === `map-${node.id}`)?.id
     : undefined;
   const highlightAction = hoveredAction ?? (allowInteract ? (state.ui.selectedAction as MapActionType | undefined) : undefined);
 
@@ -601,6 +622,39 @@ export function renderMapBoard(
       });
     }
 
+    if (allowInteract && node.id === "EARTH") {
+      const earthSelected = state.ui.selectedAction === "EARTH";
+      const showEarthButton = hovered || hoveredId === "map-earth-shop-btn" || earthSelected || !!state.ui.earthShopOpen;
+      if (showEarthButton) {
+        const btnW = 156;
+        const btnH = 28;
+        const btnX = clamp(node.x - btnW / 2, mapRect.x + 10, mapRect.x + mapRect.w - btnW - 10);
+        const btnY = clamp(node.y - btnH / 2, mapRect.y + 10, mapRect.y + mapRect.h - btnH - 10);
+        drawButton(
+          ctx,
+          regions,
+          "map-earth-shop-btn",
+          btnX,
+          btnY,
+          btnW,
+          btnH,
+          earthSelected ? "Earth Selected" : "Open Earth Chamber",
+          () => {
+            if (!state.ui.earthShopOpen) {
+              dispatch({ type: "TOGGLE_EARTH_SHOP" });
+            }
+          },
+          hoveredId === "map-earth-shop-btn"
+        );
+        if (earthSelected) {
+          ctx.strokeStyle = "rgba(159,235,188,0.95)";
+          ctx.lineWidth = 2.2;
+          drawRoundedRect(ctx, btnX - 2, btnY - 2, btnW + 4, btnH + 4, 10);
+          ctx.stroke();
+        }
+      }
+    }
+
     if (node.id === "MOUNTAIN") {
       const clusterX = node.x + 18;
       const clusterY = node.y - node.radius - 8;
@@ -627,66 +681,45 @@ export function renderMapBoard(
     }
   });
 
+  if (hoverReady && hoveredId === "review-trophy-hud") {
+    queuedTooltip = {
+      content: [
+        "Progress Review Trophy Rules",
+        `Every ${PROGRESS_REVIEW_INTERVAL} rounds, 3 trophies are offered.`,
+        `Baseline this cycle: ${formatCrystals(baseline.minCrystals)} Crystals OR ${baseline.minTeachings} Teachings.`,
+        "Pass baseline, then lead a category to win the review.",
+        "Category examples:",
+        "Most Teachings, Most Crystals, Challenges, Win Rate,",
+        "Invocations, Rares, Earth Advancement progress.",
+        "Ties break by Crystals, then seeded tie-break."
+      ],
+      x: reviewX + reviewW + 8,
+      y: reviewY + 4,
+      maxWidth: 320,
+      maxHeight: 240
+    };
+  }
+
+  if (hoverReady && hoveredId === "map-earth-shop-btn") {
+    queuedTooltip = {
+      content: [
+        "Earth Chamber",
+        "Shop-style view for Earth Advancement variants.",
+        "Inspect all tier options, costs, and missing requirements.",
+        "Selecting a tier also selects EARTH for this turn."
+      ],
+      x: mapRect.x + mapRect.w - 300,
+      y: mapRect.y + mapRect.h - 180,
+      maxWidth: 300,
+      maxHeight: 180
+    };
+  }
+
   if (!hoveredId?.startsWith("map-")) {
     lastHoveredNodeId = undefined;
   }
 
   drawPlayerIcon(ctx, playerAnchor.x, playerAnchor.y, human?.name ?? "You", t);
-
-
-  if (hoverReady && hoveredId === "keystone-cave") {
-    const currentProgress = Math.floor(keystones.cave.progress);
-    const nextMilestone = currentProgress < CAVE_CRYSTAL_TIER_1 ? CAVE_CRYSTAL_TIER_1 :
-                          currentProgress < CAVE_RARE_THRESHOLD ? CAVE_RARE_THRESHOLD :
-                          currentProgress < CAVE_CRYSTAL_TIER_2 ? CAVE_CRYSTAL_TIER_2 :
-                          currentProgress < CAVE_MYTHIC_THRESHOLD ? CAVE_MYTHIC_THRESHOLD : null;
-    const progressText = nextMilestone ? `(${nextMilestone - currentProgress} to next reward)` : "(Mastery achieved!)";
-    queuedTooltip = {
-      content: [
-        "🔷 Cave Keystone",
-        "Gain Ascension Power in Cave challenges",
-        "",
-        `Progress: ${currentProgress} AP ${progressText}`,
-        "",
-        "💎 Milestones:",
-        `  ${keystones.cave.crystalTier1Claimed ? "✓" : "○"} ${CAVE_CRYSTAL_TIER_1} AP: +3 Crystals`,
-        `  ${keystones.cave.rareUnlocked ? "✓" : "○"} ${CAVE_RARE_THRESHOLD} AP: Lantern of the Unseen`,
-        `  ${keystones.cave.crystalTier2Claimed ? "✓" : "○"} ${CAVE_CRYSTAL_TIER_2} AP: +8 Crystals`,
-        `  ${keystones.cave.mythicUnlocked ? "✓" : "○"} ${CAVE_MYTHIC_THRESHOLD} AP: Echoes in the Stone`
-      ],
-      x: clamp(mapRect.x + 12, mapRect.x + 12, mapRect.x + mapRect.w - 280),
-      y: clamp(mapRect.y + 12 + keystoneH * 2 + 12, mapRect.y + 12, mapRect.y + mapRect.h - 200),
-      maxWidth: 280,
-      maxHeight: 200
-    };
-  }
-
-  if (hoverReady && hoveredId === "keystone-mountain") {
-    const currentProgress = Math.floor(keystones.mountain.progress);
-    const nextMilestone = currentProgress < MOUNTAIN_CRYSTAL_TIER_1 ? MOUNTAIN_CRYSTAL_TIER_1 :
-                          currentProgress < MOUNTAIN_RARE_THRESHOLD ? MOUNTAIN_RARE_THRESHOLD :
-                          currentProgress < MOUNTAIN_CRYSTAL_TIER_2 ? MOUNTAIN_CRYSTAL_TIER_2 :
-                          currentProgress < MOUNTAIN_MYTHIC_THRESHOLD ? MOUNTAIN_MYTHIC_THRESHOLD : null;
-    const progressText = nextMilestone ? `(${nextMilestone - currentProgress} to next reward)` : "(Mastery achieved!)";
-    queuedTooltip = {
-      content: [
-        "🔶 Mountain Keystone",
-        "Play Teaching Power in Mountain challenges",
-        "",
-        `Progress: ${currentProgress} TP ${progressText}`,
-        "",
-        "💎 Milestones:",
-        `  ${keystones.mountain.crystalTier1Claimed ? "✓" : "○"} ${MOUNTAIN_CRYSTAL_TIER_1} TP: +3 Crystals`,
-        `  ${keystones.mountain.rareUnlocked ? "✓" : "○"} ${MOUNTAIN_RARE_THRESHOLD} TP: Breath of the Summit`,
-        `  ${keystones.mountain.crystalTier2Claimed ? "✓" : "○"} ${MOUNTAIN_CRYSTAL_TIER_2} TP: +8 Crystals`,
-        `  ${keystones.mountain.mythicUnlocked ? "✓" : "○"} ${MOUNTAIN_MYTHIC_THRESHOLD} TP: Crown of Endurance`
-      ],
-      x: clamp(mapRect.x + 12, mapRect.x + 12, mapRect.x + mapRect.w - 280),
-      y: clamp(mapRect.y + 12 + keystoneH * 2 + 12, mapRect.y + 12, mapRect.y + mapRect.h - 200),
-      maxWidth: 280,
-      maxHeight: 200
-    };
-  }
 
   if (queuedTooltip) {
     if (mapTooltipShowTime === 0) mapTooltipShowTime = now;
@@ -710,100 +743,6 @@ export function renderMapBoard(
     const status = state.ui.aiStatus?.message ?? "Choice locked...";
     const label = clampToWidth(ctx, status, 292);
     ctx.fillText(label, width / 2, mapRect.y + 54);
-  }
-
-  if (state.phase === "ACTION_SELECT" && state.ui.selectedAction === "EARTH") {
-    const earthNode = nodes.find((node) => node.id === "EARTH");
-    const human = state.players.find((p) => !p.isAI);
-    if (earthNode && human) {
-      const panelW = 240;
-      const panelH = 210;
-      let panelX = earthNode.x + earthNode.radius + 18;
-      if (panelX + panelW > mapRect.x + mapRect.w - 8) {
-        panelX = earthNode.x - earthNode.radius - panelW - 18;
-      }
-      let panelY = earthNode.y - panelH / 2;
-      panelY = clamp(panelY, mapRect.y + 12, mapRect.y + mapRect.h - panelH - 12);
-      drawPanel(ctx, panelX, panelY, panelW, panelH, "rgba(16,20,28,0.9)", "#3d475f");
-      ctx.fillStyle = "#f5f1e6";
-      ctx.font = "600 14px 'Cinzel', serif";
-      ctx.textAlign = "left";
-      ctx.fillText("Choose Tier", panelX + 14, panelY + 22);
-
-      const tier = state.ui.selectedEarthTier ?? 1;
-      const t1 = state.decks.earthAdvancementsT1[0] ? dataStore.earthAdvancementsById[state.decks.earthAdvancementsT1[0]] : undefined;
-      const t2 = state.decks.earthAdvancementsT2[0] ? dataStore.earthAdvancementsById[state.decks.earthAdvancementsT2[0]] : undefined;
-      const t3 = state.decks.earthAdvancementsT3[0] ? dataStore.earthAdvancementsById[state.decks.earthAdvancementsT3[0]] : undefined;
-      const can1 = canBuyEarthAdvancement(state, human, 1);
-      const can2 = canBuyEarthAdvancement(state, human, 2);
-      const can3 = canBuyEarthAdvancement(state, human, 3);
-      const has1 = state.decks.earthAdvancementsT1.length > 0;
-      const has2 = state.decks.earthAdvancementsT2.length > 0;
-      const has3 = state.decks.earthAdvancementsT3.length > 0;
-      const labelForTier = (tierNum: 1 | 2 | 3, card: typeof t1) => {
-        if (!card) return `Tier ${tierNum} (Empty)`;
-        const crystalCost = earthAdvancementCrystalCost(card, human);
-        const selected = tier === tierNum ? " *" : "";
-        return `Tier ${tierNum}${selected} (${formatCrystals(crystalCost)})`;
-      };
-      const rowX = panelX + 14;
-      const rowW = panelW - 28;
-      const rowH = 36;
-      const rowY = panelY + 36;
-      drawTierChoice(
-        ctx,
-        regions,
-        "earth-tier-1",
-        rowX,
-        rowY,
-        rowW,
-        rowH,
-        labelForTier(1, t1),
-        has1,
-        hoveredId === "earth-tier-1",
-        () => dispatch({ type: "SET_EARTH_TIER", tier: 1 })
-      );
-      drawTierChoice(
-        ctx,
-        regions,
-        "earth-tier-2",
-        rowX,
-        rowY + rowH + 8,
-        rowW,
-        rowH,
-        labelForTier(2, t2),
-        has2,
-        hoveredId === "earth-tier-2",
-        () => dispatch({ type: "SET_EARTH_TIER", tier: 2 })
-      );
-      drawTierChoice(
-        ctx,
-        regions,
-        "earth-tier-3",
-        rowX,
-        rowY + (rowH + 8) * 2,
-        rowW,
-        rowH,
-        labelForTier(3, t3),
-        has3,
-        hoveredId === "earth-tier-3",
-        () => dispatch({ type: "SET_EARTH_TIER", tier: 3 })
-      );
-      const selectedCard = tier === 1 ? t1 : tier === 2 ? t2 : t3;
-      const selectedReady = tier === 1 ? can1 : tier === 2 ? can2 : can3;
-      const selectedMissing = selectedCard ? earthAdvancementMissingRequirements(selectedCard, human) : ["No advancement in this tier"];
-      const reqLine = selectedCard ? earthAdvancementRequirementLines(selectedCard).slice(1, 2)[0] : undefined;
-      ctx.fillStyle = selectedReady ? "#9cf7c4" : "#ffb3b3";
-      ctx.font = "12px 'Cinzel', serif";
-      ctx.textAlign = "left";
-      ctx.fillText(selectedReady ? "Requirements met" : "Requirements missing", panelX + 16, panelY + panelH - 36);
-      ctx.fillStyle = "rgba(245,241,230,0.8)";
-      ctx.font = "11px 'Source Serif 4', serif";
-      const infoText = selectedReady
-        ? (reqLine ?? "No extra requirement")
-        : selectedMissing[0];
-      ctx.fillText(infoText, panelX + 16, panelY + panelH - 18);
-    }
   }
 
 }
