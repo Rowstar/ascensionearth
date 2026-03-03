@@ -26,6 +26,22 @@ Completed in this slice (`ACTION_SELECT`, P0):
   - Respects `prefers-reduced-motion` and in-game motion toggle.
   - Disables match particles/pulse overlays and suppresses major time-based pulsing accents when reduced motion is active.
 
+Completed in this slice (`CHALLENGE` + systems, P0/P1):
+
+- [DONE] Reduced CHALLENGE information density with a focused 3-beat decision layout:
+  - Beat 1: Threat summary.
+  - Beat 2: Readiness summary with pass/fail baseline reason.
+  - Beat 3: Choice CTAs.
+  - Secondary detail content moved into focus drawer tabs (`Status`, `Rewards`, `Log`), with mobile bottom-drawer behavior.
+- [DONE] Replaced brittle log-string audio triggers with typed `SfxEvent` pipeline:
+  - Engine emits typed events at gameplay truth points (shop, sell, rewards, challenge phases/outcomes, trophies, milestones, thresholds, deny actions).
+  - Match renderer consumes events and plays SFX/VFX without parsing log text.
+  - Added dev diagnostics readout for recent SFX events.
+- [DONE] Expanded reduced-motion compliance beyond ACTION_SELECT:
+  - Introduced unified `motionEnabled` derivation (`prefers-reduced-motion` + user setting).
+  - Gated map/challenge heavy motion paths and reward/button animation hooks.
+  - Prevented non-essential challenge animation loops when reduced motion is active.
+
 ## Prioritized Top 15 Issues
 
 | # | Priority | Area | Issue | Player/Production Impact | Recommended Fix |
@@ -33,13 +49,13 @@ Completed in this slice (`ACTION_SELECT`, P0):
 | 1 | P0 | UX phase clarity | No single explicit "Do this now" rail; multiple simultaneous surfaces compete for attention. | New and returning players lose intent, especially between Action Select and Challenge Commit. | Add Phase Focus Mode with a persistent objective strip and phase-scoped primary CTA. |
 | 2 | P0 | UI hierarchy | `ACTION_SELECT` renders top bar, map, two sidebars, hand dock, log/toasts, plus shop overlays simultaneously. | Cognitive overload and decision fatigue; weak AAA clarity. | Demote non-critical panels per phase (dim/collapse) and gate interactions outside primary zone. |
 | 3 | P0 | UX mobile | At small widths, both sidebars collapse to zero width. | Core context (stats, teachings/artifacts, action summary) disappears on mobile. | Add mobile bottom-sheet tabs: `Objective`, `Inventory`, `Stats`, `Log`. |
-| 4 | P0 | Challenge UX | Challenge view contains banner, stepper, table, side panel, TP/keystone/reward/log/buttons concurrently. | High cognitive load in highest-stakes phase. | Segment challenge sidebar into tabs (`Objective`, `Rewards`, `Log`) with smart defaults by subphase. |
+| 4 | P0 | Challenge UX | [DONE 2026-03-03] Challenge view previously contained banner, stepper, table, side panel, TP/keystone/reward/log/buttons concurrently. | High cognitive load in highest-stakes phase. | Implemented 3-beat decision layout + details drawer tabs (`Status`, `Rewards`, `Log`) in CHALLENGE focus mode. |
 | 5 | P1 | Hierarchy responsiveness | Top bar score centering and trophy strip are dynamic but lack hard truncation strategy under pressure. | Text overlap/clipping risk, unstable scan path. | Introduce responsive top-bar priority: objective > phase > score > trophies > controls; truncate lower-priority content first. |
 | 6 | P1 | Readability typography | Core informational text often uses 10-11 px equivalents in dense panels. | Reduced legibility, especially on high-DPI laptops/mobile. | Enforce font scale tokens: body >= 12 desktop, >= 13 mobile; metadata >= 11. |
 | 7 | P1 | Contrast consistency | Multiple low-alpha text-on-alpha layers create variable contrast. | Intermittent readability failures across background values. | Add contrast-safe token pairings and fallback opaque scrim under functional text blocks. |
 | 8 | P1 | Layout consistency | Spacing and alignment rules vary by panel; no global 8-pt rhythm is enforced. | "Indie prototype" feel vs "AAA production UI." | Standardize panel internals around spacing tokens and shared layout helpers. |
-| 9 | P1 | Motion accessibility | Match-scene particles/pulses update regardless motion settings. | Accessibility mismatch; unnecessary GPU/CPU work on low-power devices. | Gate match VFX updates by `motionEnabled` + particle quality policy. |
-|10| P1 | Audio architecture | Many cues are triggered by log-string matching. | Fragile, non-localized, hard to maintain; accidental/missed cue risk. | Replace string parsing with explicit gameplay audio events (`PHASE_ENTER`, `REWARD_UNLOCK`, etc.). |
+| 9 | P1 | Motion accessibility | [DONE 2026-03-03] Motion-heavy surfaces previously continued running in reduced-motion paths. | Accessibility mismatch; unnecessary GPU/CPU work on low-power devices. | Added unified `motionEnabled` resolution and gated heavy map/challenge/reward/button animations accordingly. |
+|10| P1 | Audio architecture | [DONE 2026-03-03] Cues previously depended on log-string matching. | Fragile, non-localized, hard to maintain; accidental/missed cue risk. | Replaced with typed `SfxEvent` emission in engine/reducer and event consumption in renderer/audio layer. |
 |11| P2 | Audio polish | Low-cost confirmation/transition cues are missing in several UI transitions. | Reduced tactile feedback and perceived production quality. | Add lightweight SFX for modal open/close, action lock, draft pick, evaluation reveals. |
 |12| P2 | Performance UI | Match log wraps every log line every frame when open. | Avoidable frame-time spikes during long sessions. | Cache wrapped log lines and only recompute on log version change or width change. |
 |13| P2 | Performance UI | Challenge log wraps entire log every frame when expanded. | Similar avoidable cost during challenge-heavy turns. | Same memoization strategy for challenge logs. |

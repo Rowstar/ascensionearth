@@ -9,6 +9,7 @@ Source: `docs/AUDIT_REPORT.md`
 |---|---|---|
 | Add objective strip text per phase in `renderMatch` | Clear "what to do now" prompt every phase | Frontend |
 | [DONE] Gate match particles/pulses by motion settings | Completed in ACTION_SELECT focus slice; reduced-motion now suppresses non-essential pulse/particle effects | Frontend |
+| [DONE] Expand reduced-motion gating to challenge/result/button/reward animations | Unified `motionEnabled` now gates heavy animation surfaces across focus modes | Frontend |
 | Increase minimum small-body font usage in sidebars to 12 | Immediate readability uplift | Frontend |
 | Normalize panel header spacing and row padding using one token set | Cleaner alignment consistency | Frontend |
 | Add SFX hooks for confirm action and modal open/close | Better tactile UX feedback | Audio |
@@ -24,14 +25,14 @@ Source: `docs/AUDIT_REPORT.md`
 | Implement log wrapping cache for Challenge Log | Lower per-frame CPU cost in challenge phases | Frontend Perf |
 | Refactor top-bar layout priority with truncation rules | Prevent overlap/clipping on narrow widths | Frontend UX |
 | Build mobile bottom-sheet tabs for `Inventory/Stats/Log` when sidebars collapse | Mobile usability parity | Frontend |
-| Replace string-based audio triggers with typed event constants for 3 key events | Stable and maintainable audio hookups | Audio/Engine |
+| [DONE] Replace string-based audio triggers with typed SFX events | Completed: reducer/rules emit typed events; renderer consumes events and plays cues without log parsing | Audio/Engine |
 
 ## 1 Week Tasks
 
 | Task | Outcome | Owner |
 |---|---|---|
-| Full Phase Focus Mode rollout to all phases and challenge subphases | AAA-grade phase clarity and pacing control | Frontend UX |
-| Challenge sidebar information architecture refactor (`Objective`, `Rewards`, `Log` tabs) | Better scanning under challenge pressure | Frontend UX |
+| [PARTIAL] Full Phase Focus Mode rollout to all phases and challenge subphases | `ACTION_SELECT` and `CHALLENGE` focus compositions are complete; remaining phases still pending | Frontend UX |
+| [DONE] Challenge information architecture refactor (3-beat decision + details tabs) | Completed in CHALLENGE focus mode with `Status`, `Rewards`, `Log` details drawer | Frontend UX |
 | Asset integration pass for vertical-slice art pack via manifest + fallbacks | Safe replacement of procedural UI visuals | Tech Art + Frontend |
 | Visual tokenization pass (`docs/UI_TOKENS.json` -> runtime constants) | Consistent hierarchy, spacing, contrast, glow | Art Director + Frontend |
 | Audio pass: ambient beds + rarity accents + transition stingers | Stronger production feel with low implementation cost | Audio |
