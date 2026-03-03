@@ -1,6 +1,29 @@
-node_modules/
+# runtime
+data/
+uploads/
+logs/
+*.log
+
+# environment
+.env
+.env.local
+.env.*.local
+
+# build output
 dist/
-.claude/
+build/
+.next/
+
+# dependencies
+node_modules/
+
+# OS
 .DS_Store
 Thumbs.db
-*.log
+
+# editor
+.vscode/
+.idea/
+
+# local tooling
+.claude/
