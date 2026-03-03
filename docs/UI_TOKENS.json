@@ -1,0 +1,150 @@
+{
+  "meta": {
+    "version": "v2",
+    "theme": "elevated_parchment_cosmic_mysticism",
+    "fonts": {
+      "display": "Cinzel",
+      "body": "Source Serif 4"
+    }
+  },
+  "colors": {
+    "backgroundParchment": "#D8C8A9",
+    "backgroundParchmentDark": "#BEA986",
+    "deepMapTone": "#123742",
+    "primaryAccent": "#2A6A78",
+    "secondaryAccent": "#1F4E5F",
+    "goldTrim": "#C7A157",
+    "goldTrimSoft": "#A88444",
+    "neutralInk": "#1E2328",
+    "panelFill": "rgba(14, 20, 28, 0.86)",
+    "panelFillElevated": "rgba(10, 15, 23, 0.93)",
+    "panelStroke": "rgba(126, 151, 166, 0.46)",
+    "textPrimary": "#F2EBDD",
+    "textSecondary": "rgba(242, 235, 221, 0.78)",
+    "dangerMuted": "#8E5A4A",
+    "successMuted": "#5F8A63",
+    "focusLine": "#D0B57A"
+  },
+  "strokes": {
+    "primary": 2,
+    "secondary": 1,
+    "panelBorder": 2
+  },
+  "radii": {
+    "small": 8,
+    "medium": 12,
+    "large": 18
+  },
+  "borders": {
+    "button": 2,
+    "card": 2,
+    "focusRing": 2
+  },
+  "shadows": {
+    "panelInner": {
+      "offsetX": 0,
+      "offsetY": 1,
+      "blur": 8,
+      "color": "rgba(7, 10, 14, 0.42)"
+    },
+    "panelOuter": {
+      "offsetX": 0,
+      "offsetY": 4,
+      "blur": 18,
+      "color": "rgba(0, 0, 0, 0.26)"
+    },
+    "nodeActive": {
+      "offsetX": 0,
+      "offsetY": 7,
+      "blur": 20,
+      "color": "rgba(0, 0, 0, 0.34)"
+    }
+  },
+  "glowTiers": {
+    "contained": {
+      "radius": 14,
+      "alpha": 0.24
+    },
+    "radiant": {
+      "radius": 24,
+      "alpha": 0.34
+    },
+    "mythicStructural": {
+      "radius": 36,
+      "alpha": 0.4
+    }
+  },
+  "motion": {
+    "glowPulseMs": 2200,
+    "sheenSweepMs": 1200,
+    "mapBreathingMs": 4800,
+    "hoverLiftPx": 2,
+    "reducedMotion": {
+      "disableParticles": true,
+      "disablePulseLoops": true,
+      "disableSheenSweep": true,
+      "disableRuneRotate": true
+    }
+  },
+  "assetSpecs": {
+    "mapBackground": {
+      "path": "public/art/map/map_background_v2.png",
+      "width": 3840,
+      "height": 2160,
+      "transparent": false
+    },
+    "nodePlates": {
+      "directory": "public/art/nodes",
+      "size": 512,
+      "transparent": true,
+      "ids": [
+        "cave_journey",
+        "mountain_journey",
+        "meditate",
+        "earth_advancement"
+      ]
+    },
+    "uiIcons": {
+      "directory": "public/art/icons",
+      "size": 256,
+      "transparent": true,
+      "ids": [
+        "crystal",
+        "teachings",
+        "ap",
+        "tp",
+        "dice",
+        "trophy",
+        "shop",
+        "menu",
+        "sound",
+        "music"
+      ]
+    },
+    "cardFrames": {
+      "directory": "public/art/frames",
+      "width": 1024,
+      "height": 1536,
+      "transparent": true,
+      "ids": [
+        "basic",
+        "rare",
+        "mythic"
+      ],
+      "mythicEdgeFlush": true
+    },
+    "vfxOverlays": {
+      "directory": "public/art/vfx",
+      "size": 1024,
+      "transparent": true,
+      "ids": [
+        "glow_pulse",
+        "sheen_sweep",
+        "rune_circle",
+        "dust_motes",
+        "ripple_ring"
+      ],
+      "gatedByMotionEnabled": true
+    }
+  }
+}
